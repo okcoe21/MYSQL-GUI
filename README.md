@@ -61,7 +61,7 @@ The application is engineered with a security-first mindset:
 
 1. **Clone the project**:
    ```bash
-   git clone [repository-url]
+   git clone https://github.com/okcoe21/MYSQL-GUI.git
    cd mysql-gui
    ```
 
