@@ -1,0 +1,499 @@
+.container {
+    display: flex;
+    height: 100vh;
+    background-color: #0f172a;
+    color: #f8fafc;
+    font-family: 'Inter', sans-serif;
+}
+
+.sidebar {
+    width: 280px;
+    background-color: #1e293b;
+    border-right: 1px solid #334155;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.sidebarHeader {
+    padding: 1.5rem;
+    border-bottom: 1px solid #334155;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.brand {
+    font-weight: 700;
+    font-size: 1.25rem;
+    background: linear-gradient(to right, #38bdf8, #818cf8);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.logoutBtn {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logoutBtn:hover {
+    background-color: #334155;
+    color: #f8fafc;
+}
+
+.sidebarSearch {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #334155;
+}
+
+.searchInput {
+    width: 100%;
+    padding: 0.4rem 0.75rem;
+    background-color: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    color: #f8fafc;
+    font-size: 0.75rem;
+}
+
+.searchInput:focus {
+    outline: none;
+    border-color: #38bdf8;
+}
+
+.sidebarContent {
+    flex: 1;
+    padding: 1rem 0;
+}
+
+.dbItem {
+    margin-bottom: 0.25rem;
+}
+
+.dbHeader {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background: none;
+    border: none;
+    color: #f8fafc;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.dbHeader:hover {
+    background-color: #334155;
+}
+
+.dbHeader.active {
+    background-color: #334155;
+    color: #38bdf8;
+}
+
+.tableList {
+    padding-left: 1.5rem;
+    margin-top: 0.125rem;
+}
+
+.tableBtn {
+    width: 100%;
+    padding: 0.4rem 0.75rem;
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 0.8125rem;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.tableBtn:hover {
+    background-color: #334155;
+    color: #f8fafc;
+}
+
+.tableBtn.active {
+    color: #38bdf8;
+    background-color: rgba(56, 189, 248, 0.1);
+    font-weight: 500;
+}
+
+.mainContent {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.topBar {
+    padding: 0.75rem 1.5rem;
+    background-color: #1e293b;
+    border-bottom: 1px solid #334155;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8125rem;
+    color: #94a3b8;
+}
+
+.breadcrumbItem {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+.breadcrumbItem:hover {
+    color: #38bdf8;
+}
+
+.breadcrumbSeparator {
+    color: #475569;
+}
+
+.tabs {
+    display: flex;
+    background-color: #1e293b;
+    border-bottom: 1px solid #334155;
+    padding: 0 1.5rem;
+}
+
+.tab {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #94a3b8;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: none;
+}
+
+.tab:hover {
+    color: #f8fafc;
+    background-color: rgba(56, 189, 248, 0.05);
+}
+
+.tab.active {
+    color: #38bdf8;
+    border-bottom-color: #38bdf8;
+    background-color: rgba(56, 189, 248, 0.1);
+}
+
+.tabIcon {
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+.contentArea {
+    flex: 1;
+    padding: 1.5rem;
+    overflow-y: auto;
+}
+
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.count {
+    margin-bottom: 1rem;
+    font-size: 0.8125rem;
+    color: #94a3b8;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tableContainer {
+    flex: 1;
+    overflow: auto;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    background-color: #1e293b;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.table th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #263349;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: #38bdf8;
+    border-bottom: 1px solid #334155;
+    white-space: nowrap;
+}
+
+.table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #334155;
+    color: #e2e8f0;
+    white-space: nowrap;
+}
+
+.table tr:hover {
+    background-color: #2d3a4f;
+}
+
+.loading,
+.error {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+    color: #94a3b8;
+}
+
+.error {
+    color: #ef4444;
+}
+
+.emptyState {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #94a3b8;
+    text-align: center;
+}
+
+.emptyIcon {
+    margin-bottom: 1.5rem;
+    opacity: 0.5;
+}
+
+.emptyState h2 {
+    color: #f8fafc;
+    margin-bottom: 0.5rem;
+}
+
+/* Forms & Inputs */
+.form {
+    background-color: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 1.5rem;
+    max-width: 800px;
+}
+
+.fieldRow {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #334155;
+}
+
+.fieldRow:last-child {
+    border-bottom: none;
+}
+
+.fieldLabel {
+    width: 200px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #e2e8f0;
+}
+
+.fieldInputWrapper {
+    flex: 1;
+}
+
+.formInput {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    background-color: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    color: #f8fafc;
+    font-size: 0.875rem;
+}
+
+.formInput:focus {
+    outline: none;
+    border-color: #38bdf8;
+}
+
+.formFooter {
+    margin-top: 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+.primaryBtn {
+    background-color: #38bdf8;
+    color: #0f172a;
+    border: none;
+    padding: 0.6rem 1.5rem;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.primaryBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.dangerBtn {
+    background-color: #ef4444;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.5rem;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.actionBtn {
+    padding: 4px 12px;
+    background: none;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.actionBtn:hover {
+    color: #f8fafc;
+    border-color: #475569;
+    background-color: #334155;
+}
+
+.actionBtn.danger:hover {
+    color: #ef4444;
+    border-color: #ef4444;
+}
+
+.linkText {
+    color: #38bdf8;
+    text-decoration: none;
+}
+
+.linkText:hover {
+    text-decoration: underline;
+}
+
+.warning {
+    padding: 1rem;
+    background-color: rgba(245, 158, 11, 0.05);
+    border: 1px solid #f59e0b;
+    border-radius: 8px;
+    color: #f8fafc;
+    font-size: 0.875rem;
+}
+
+.warningControls {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.cancelBtn {
+    background: none;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    padding: 0.4rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8125rem;
+}
+
+.cancelBtn:hover {
+    color: #f8fafc;
+    border-color: #475569;
+}
+
+.successMessage {
+    padding: 0.75rem 1rem;
+    background-color: rgba(16, 185, 129, 0.1);
+    border: 1px solid #10b981;
+    border-radius: 6px;
+    color: #10b981;
+    font-size: 0.875rem;
+}
+
+/* SQL Editor Specific Styles */
+.editorGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.editor {
+    width: 100%;
+    height: 150px;
+    background-color: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    color: #f8fafc;
+    padding: 1rem;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 0.875rem;
+    resize: vertical;
+}
+
+.editor:focus {
+    outline: none;
+    border-color: #38bdf8;
+}
+
+.resultsArea {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    margin-top: 1.5rem;
+}
+
+.confirmBtn {
+    background-color: #f59e0b;
+    color: #0f172a;
+    border: none;
+    padding: 0.4rem 1rem;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
