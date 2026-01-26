@@ -133,6 +133,15 @@
     color: var(--foreground);
 }
 
+.objectSectionLabel {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--text-muted);
+    padding: 0.75rem 0.5rem 0.25rem 2rem;
+    letter-spacing: 0.05em;
+}
+
 .tableBtn.active {
     color: var(--primary);
     background-color: var(--primary-transparent);

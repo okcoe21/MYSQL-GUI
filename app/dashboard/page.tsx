@@ -16,8 +16,10 @@ import ImportView from "./ImportView";
 import ExportView from "./ExportView";
 import HistoryView from "./HistoryView";
 import VisualQueryBuilder from "./VisualQueryBuilder";
+import ObjectView from "./ObjectView";
+import UserManagement from "./UserManagement";
 
-type ViewType = "browse" | "structure" | "sql" | "search" | "insert" | "operations" | "db_overview" | "server_overview" | "create_table" | "import" | "export" | "history" | "query_builder";
+type ViewType = "browse" | "structure" | "sql" | "search" | "insert" | "operations" | "db_overview" | "server_overview" | "create_table" | "import" | "export" | "history" | "query_builder" | "object_view" | "users";
 
 export default function DashboardPage() {
     const [selectedDb, setSelectedDb] = useState<string | undefined>();
@@ -25,6 +27,7 @@ export default function DashboardPage() {
     const [activeView, setActiveView] = useState<ViewType>("server_overview");
     const [sidebarKey, setSidebarKey] = useState(0);
     const [externalQuery, setExternalQuery] = useState("");
+    const [selectedObject, setSelectedObject] = useState<{ name: string; type: "view" | "procedure" | "function" } | undefined>();
 
     const refreshSidebar = () => setSidebarKey(prev => prev + 1);
 
@@ -34,9 +37,17 @@ export default function DashboardPage() {
         setActiveView("browse");
     };
 
+    const handleSelectObject = (db: string, name: string, type: "view" | "procedure" | "function") => {
+        setSelectedDb(db);
+        setSelectedTable(undefined);
+        setSelectedObject({ name, type });
+        setActiveView("object_view");
+    };
+
     const handleSelectDb = (db: string) => {
         setSelectedDb(db);
         setSelectedTable(undefined);
+        setSelectedObject(undefined);
         setActiveView("db_overview");
     };
 
@@ -62,6 +73,10 @@ export default function DashboardPage() {
                     onRefreshSidebar={refreshSidebar}
                 />
             );
+        }
+
+        if (activeView === "users") {
+            return <UserManagement />;
         }
 
         if (!selectedDb) {
@@ -97,6 +112,9 @@ export default function DashboardPage() {
                     );
                 case "db_overview":
                 default:
+                    if (activeView === "object_view" && selectedObject) {
+                        return <ObjectView database={selectedDb} name={selectedObject.name} type={selectedObject.type} />;
+                    }
                     return (
                         <DbOverview
                             database={selectedDb}
@@ -134,9 +152,12 @@ export default function DashboardPage() {
             <Sidebar
                 key={sidebarKey}
                 onSelectTable={handleSelectTable}
+                onSelectObject={handleSelectObject}
                 onSelectDb={handleSelectDb}
+                onSelectUsers={() => setActiveView("users")}
                 selectedDb={selectedDb}
                 selectedTable={selectedTable}
+                selectedObject={selectedObject}
             />
 
             <main className={styles.mainContent}>
@@ -158,6 +179,14 @@ export default function DashboardPage() {
                                 <span className={styles.breadcrumbSeparator}>&raquo;</span>
                                 <div className={styles.breadcrumbItem} onClick={() => setActiveView("browse")}>
                                     <Table size={14} /> {selectedTable}
+                                </div>
+                            </>
+                        )}
+                        {selectedObject && (
+                            <>
+                                <span className={styles.breadcrumbSeparator}>&raquo;</span>
+                                <div className={styles.breadcrumbItem}>
+                                    {selectedObject.name} ({selectedObject.type})
                                 </div>
                             </>
                         )}

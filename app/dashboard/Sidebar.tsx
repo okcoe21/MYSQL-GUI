@@ -1,22 +1,32 @@
 import { useState, useEffect } from "react";
-import { Database, Table, ChevronRight, ChevronDown, LogOut, Plus, Check, X, Sun, Moon } from "lucide-react";
+import { Database, Table, ChevronRight, ChevronDown, LogOut, Plus, Check, X, Sun, Moon, Eye, Terminal, Variable, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import styles from "./dashboard.module.css";
 import { useTheme } from "@/lib/ThemeProvider";
 
 interface SidebarProps {
     onSelectTable: (db: string, table: string) => void;
+    onSelectObject: (db: string, name: string, type: "view" | "procedure" | "function") => void;
     onSelectDb: (db: string) => void;
+    onSelectUsers: () => void;
     selectedDb?: string;
     selectedTable?: string;
+    selectedObject?: { name: string; type: string };
 }
 
-export default function Sidebar({ onSelectTable, onSelectDb, selectedDb, selectedTable }: SidebarProps) {
+export default function Sidebar({ onSelectTable, onSelectObject, onSelectDb, onSelectUsers, selectedDb, selectedTable, selectedObject }: SidebarProps) {
     const router = useRouter();
     const { theme, toggleTheme } = useTheme();
     const [databases, setDatabases] = useState<string[]>([]);
     const [expandedDb, setExpandedDb] = useState<string | null>(null);
-    const [tables, setTables] = useState<{ [db: string]: string[] }>({});
+    const [dbObjects, setDbObjects] = useState<{
+        [db: string]: {
+            tables: string[];
+            views: string[];
+            procedures: string[];
+            functions: string[];
+        }
+    }>({});
     const [loadingDb, setLoadingDb] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [showCreateDb, setShowCreateDb] = useState(false);
@@ -29,7 +39,7 @@ export default function Sidebar({ onSelectTable, onSelectDb, selectedDb, selecte
     useEffect(() => {
         if (selectedDb) {
             setExpandedDb(selectedDb);
-            fetchTables(selectedDb);
+            fetchDbObjects(selectedDb);
         }
     }, [selectedDb]);
 
@@ -69,16 +79,28 @@ export default function Sidebar({ onSelectTable, onSelectDb, selectedDb, selecte
         }
     };
 
-    const fetchTables = async (db: string) => {
-        if (tables[db]) return; // Already fetched
+    const fetchDbObjects = async (db: string) => {
+        if (dbObjects[db]) return;
         try {
-            const res = await fetch(`/api/tables?database=${db}`);
-            const data = await res.json();
-            if (data.success) {
-                setTables((prev) => ({ ...prev, [db]: data.tables }));
+            const tableRes = await fetch(`/api/tables?database=${db}`);
+            const tableData = await tableRes.json();
+
+            const objectRes = await fetch(`/api/objects?database=${db}`);
+            const objectData = await objectRes.json();
+
+            if (tableData.success && objectData.success) {
+                setDbObjects((prev) => ({
+                    ...prev,
+                    [db]: {
+                        tables: tableData.tables,
+                        views: objectData.views,
+                        procedures: objectData.procedures,
+                        functions: objectData.functions
+                    }
+                }));
             }
         } catch (err) {
-            console.error("Failed to fetch tables", err);
+            console.error("Failed to fetch database objects", err);
         }
     };
 
@@ -87,7 +109,7 @@ export default function Sidebar({ onSelectTable, onSelectDb, selectedDb, selecte
             setExpandedDb(null);
         } else {
             setExpandedDb(db);
-            fetchTables(db);
+            fetchDbObjects(db);
             onSelectDb(db);
         }
     };
@@ -152,6 +174,15 @@ export default function Sidebar({ onSelectTable, onSelectDb, selectedDb, selecte
                         </button>
                     </div>
                 )}
+
+                <button
+                    className={`${styles.tableBtn} ${!selectedDb && !selectedTable ? styles.active : ""}`}
+                    onClick={onSelectUsers}
+                    style={{ marginTop: "12px", width: "100%", textAlign: "left", paddingLeft: "12px" }}
+                >
+                    <Users size={16} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                    User Management
+                </button>
             </div>
 
             <div className={styles.sidebarContent}>
@@ -171,17 +202,65 @@ export default function Sidebar({ onSelectTable, onSelectDb, selectedDb, selecte
 
                             {expandedDb === db && (
                                 <div className={styles.tableList}>
-                                    {tables[db] ? (
-                                        tables[db].map((table) => (
-                                            <button
-                                                key={table}
-                                                className={`${styles.tableBtn} ${selectedTable === table && selectedDb === db ? styles.active : ""}`}
-                                                onClick={() => onSelectTable(db, table)}
-                                            >
-                                                <Table size={14} style={{ marginRight: 8, verticalAlign: "middle" }} />
-                                                {table}
-                                            </button>
-                                        ))
+                                    {dbObjects[db] ? (
+                                        <>
+                                            {/* Tables Section */}
+                                            {dbObjects[db].tables.map((table) => (
+                                                <button
+                                                    key={`table-${table}`}
+                                                    className={`${styles.tableBtn} ${selectedTable === table && selectedDb === db ? styles.active : ""}`}
+                                                    onClick={() => onSelectTable(db, table)}
+                                                >
+                                                    <Table size={14} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                                                    {table}
+                                                </button>
+                                            ))}
+
+                                            {/* Views Section */}
+                                            {dbObjects[db].views.length > 0 && (
+                                                <div className={styles.objectSectionLabel}>Views</div>
+                                            )}
+                                            {dbObjects[db].views.map((view) => (
+                                                <button
+                                                    key={`view-${view}`}
+                                                    className={`${styles.tableBtn} ${selectedObject?.name === view && selectedObject?.type === "view" ? styles.active : ""}`}
+                                                    onClick={() => onSelectObject(db, view, "view")}
+                                                >
+                                                    <Eye size={14} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                                                    {view}
+                                                </button>
+                                            ))}
+
+                                            {/* Procedures Section */}
+                                            {dbObjects[db].procedures.length > 0 && (
+                                                <div className={styles.objectSectionLabel}>Procedures</div>
+                                            )}
+                                            {dbObjects[db].procedures.map((proc) => (
+                                                <button
+                                                    key={`proc-${proc}`}
+                                                    className={`${styles.tableBtn} ${selectedObject?.name === proc && selectedObject?.type === "procedure" ? styles.active : ""}`}
+                                                    onClick={() => onSelectObject(db, proc, "procedure")}
+                                                >
+                                                    <Terminal size={14} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                                                    {proc}
+                                                </button>
+                                            ))}
+
+                                            {/* Functions Section */}
+                                            {dbObjects[db].functions.length > 0 && (
+                                                <div className={styles.objectSectionLabel}>Functions</div>
+                                            )}
+                                            {dbObjects[db].functions.map((func) => (
+                                                <button
+                                                    key={`func-${func}`}
+                                                    className={`${styles.tableBtn} ${selectedObject?.name === func && selectedObject?.type === "function" ? styles.active : ""}`}
+                                                    onClick={() => onSelectObject(db, func, "function")}
+                                                >
+                                                    <Variable size={14} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                                                    {func}
+                                                </button>
+                                            ))}
+                                        </>
                                     ) : (
                                         <div style={{ padding: "0.25rem 0.5rem", color: "#64748b", fontSize: "0.75rem" }}>Loading...</div>
                                     )}
