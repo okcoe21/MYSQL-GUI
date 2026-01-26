@@ -95,7 +95,7 @@ export default function ServerOverview({ onSelectDb, onRefreshSidebar }: ServerO
     if (loading && databases.length === 0) {
         return (
             <div className={styles.emptyState}>
-                <Loader2 className="animate-spin" size={48} className={styles.emptyIcon} />
+                <Loader2 className={`animate-spin ${styles.emptyIcon}`} size={48} />
                 <p>Loading server information...</p>
             </div>
         );

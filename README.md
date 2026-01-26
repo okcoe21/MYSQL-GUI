@@ -90,10 +90,4 @@ The application is engineered with a security-first mindset:
 As an open-source project, contributions are welcome. Please feel free to submit issues or pull requests to help improve the tool for the developer community.
 
 ---
-
-## License
-
-This project is open-source. Please refer to the LICENSE file for more information (MIT License recommended).
-
----
 *Made by okcoe21*
