@@ -3,6 +3,7 @@ import { executeQuery } from "@/lib/db";
 import { sanitizeIdentifier } from "@/lib/sanitize";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function DELETE(req: NextRequest) {
     try {

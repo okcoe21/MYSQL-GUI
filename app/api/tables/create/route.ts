@@ -3,6 +3,7 @@ import { executeQuery } from "@/lib/db";
 import { sanitizeIdentifier } from "@/lib/sanitize";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const VALID_TYPES = [
     "INT", "TINYINT", "SMALLINT", "MEDIUMINT", "BIGINT", "DECIMAL", "FLOAT", "DOUBLE", "REAL", "BIT", "BOOLEAN", "SERIAL",

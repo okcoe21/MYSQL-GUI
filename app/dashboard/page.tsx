@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Sidebar from "./Sidebar";
 import styles from "./dashboard.module.css";
-import { Database, Table, Home, Layout, FileText, Code, Search, Trash2, Upload, Download } from "lucide-react";
+import { Database, Table, Home, Layout, FileText, Code, Search, Trash2, Upload, Download, Clock, Wand2 } from "lucide-react";
 import TableData from "./TableData";
 import SqlEditor from "./SqlEditor";
 import DbOverview from "./DbOverview";
@@ -14,14 +14,17 @@ import ServerOverview from "./ServerOverview";
 import CreateTable from "./CreateTable";
 import ImportView from "./ImportView";
 import ExportView from "./ExportView";
+import HistoryView from "./HistoryView";
+import VisualQueryBuilder from "./VisualQueryBuilder";
 
-type ViewType = "browse" | "structure" | "sql" | "search" | "insert" | "operations" | "db_overview" | "server_overview" | "create_table" | "import" | "export";
+type ViewType = "browse" | "structure" | "sql" | "search" | "insert" | "operations" | "db_overview" | "server_overview" | "create_table" | "import" | "export" | "history" | "query_builder";
 
 export default function DashboardPage() {
     const [selectedDb, setSelectedDb] = useState<string | undefined>();
     const [selectedTable, setSelectedTable] = useState<string | undefined>();
     const [activeView, setActiveView] = useState<ViewType>("server_overview");
     const [sidebarKey, setSidebarKey] = useState(0);
+    const [externalQuery, setExternalQuery] = useState("");
 
     const refreshSidebar = () => setSidebarKey(prev => prev + 1);
 
@@ -35,6 +38,11 @@ export default function DashboardPage() {
         setSelectedDb(db);
         setSelectedTable(undefined);
         setActiveView("db_overview");
+    };
+
+    const handleRunHistoryQuery = (query: string) => {
+        setExternalQuery(query);
+        setActiveView("sql");
     };
 
     const handleTableDropped = () => {
@@ -70,7 +78,11 @@ export default function DashboardPage() {
         if (!selectedTable) {
             switch (activeView) {
                 case "sql":
-                    return <SqlEditor initialDatabase={selectedDb} />;
+                    return <SqlEditor initialDatabase={selectedDb} externalQuery={externalQuery} />;
+                case "history":
+                    return <HistoryView onRunQuery={handleRunHistoryQuery} />;
+                case "query_builder":
+                    return <VisualQueryBuilder database={selectedDb} onRunQuery={handleRunHistoryQuery} />;
                 case "import":
                     return <ImportView database={selectedDb} onSuccess={refreshSidebar} />;
                 case "export":
@@ -103,7 +115,11 @@ export default function DashboardPage() {
             case "structure":
                 return <StructureView database={selectedDb} table={selectedTable} />;
             case "sql":
-                return <SqlEditor initialDatabase={selectedDb} />;
+                return <SqlEditor initialDatabase={selectedDb} externalQuery={externalQuery} />;
+            case "history":
+                return <HistoryView onRunQuery={handleRunHistoryQuery} />;
+            case "query_builder":
+                return <VisualQueryBuilder database={selectedDb} initialTable={selectedTable} onRunQuery={handleRunHistoryQuery} />;
             case "insert":
                 return <InsertView database={selectedDb} table={selectedTable} onSuccess={() => setActiveView("browse")} />;
             case "operations":
@@ -156,17 +172,23 @@ export default function DashboardPage() {
                                 <button className={`${styles.tab} ${activeView === "browse" ? styles.active : ""}`} onClick={() => setActiveView("browse")}>
                                     <Layout size={14} className={styles.tabIcon} /> Browse
                                 </button>
-                                <button className={`${styles.tab} ${activeView === "structure" ? styles.active : ""}`} onClick={() => setActiveView("structure")}>
-                                    <FileText size={14} className={styles.tabIcon} /> Structure
+                                <button className={`${styles.tab} ${activeView === "db_overview" ? styles.active : ""}`} onClick={() => setActiveView("db_overview")}>
+                                    <Layout size={14} className={styles.tabIcon} /> Structure
                                 </button>
-                                <button className={`${styles.tab} ${activeView === "sql" ? styles.active : ""}`} onClick={() => setActiveView("sql")}>
+                                <button className={`${styles.tab} ${activeView === "sql" ? styles.active : ""}`} onClick={() => { setActiveView("sql"); setExternalQuery(""); }}>
                                     <Code size={14} className={styles.tabIcon} /> SQL
                                 </button>
-                                <button className={`${styles.tab} ${activeView === "search" ? styles.active : ""}`} onClick={() => setActiveView("search")}>
-                                    <Search size={14} className={styles.tabIcon} /> Search
+                                <button className={`${styles.tab} ${activeView === "history" ? styles.active : ""}`} onClick={() => setActiveView("history")}>
+                                    <Clock size={14} className={styles.tabIcon} /> History
                                 </button>
-                                <button className={`${styles.tab} ${activeView === "insert" ? styles.active : ""}`} onClick={() => setActiveView("insert")}>
-                                    <Layout size={14} className={styles.tabIcon} /> Insert
+                                <button className={`${styles.tab} ${activeView === "query_builder" ? styles.active : ""}`} onClick={() => setActiveView("query_builder")}>
+                                    <Wand2 size={14} className={styles.tabIcon} /> Query Builder
+                                </button>
+                                <button className={`${styles.tab} ${activeView === "import" ? styles.active : ""}`} onClick={() => setActiveView("import")}>
+                                    <Upload size={14} className={styles.tabIcon} /> Import
+                                </button>
+                                <button className={`${styles.tab} ${activeView === "export" ? styles.active : ""}`} onClick={() => setActiveView("export")}>
+                                    <Download size={14} className={styles.tabIcon} /> Export
                                 </button>
                                 <button className={`${styles.tab} ${activeView === "operations" ? styles.active : ""}`} onClick={() => setActiveView("operations")}>
                                     <Trash2 size={14} className={styles.tabIcon} /> Operations

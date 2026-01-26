@@ -3,6 +3,7 @@ import { executeQuery } from "@/lib/db";
 import { isDestructive } from "@/lib/sanitize";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
     try {

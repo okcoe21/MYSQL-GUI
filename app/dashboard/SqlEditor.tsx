@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import styles from "./dashboard.module.css";
 import { Play, AlertTriangle, CheckCircle } from "lucide-react";
 
 interface SqlEditorProps {
     initialDatabase?: string;
+    externalQuery?: string;
 }
 
 interface QueryResult {
@@ -17,12 +18,31 @@ interface QueryResult {
     error?: string;
 }
 
-export default function SqlEditor({ initialDatabase }: SqlEditorProps) {
-    const [query, setQuery] = useState("");
+export default function SqlEditor({ initialDatabase, externalQuery }: SqlEditorProps) {
+    const [query, setQuery] = useState(externalQuery || "");
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState<QueryResult | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [showWarning, setShowWarning] = useState(false);
+
+    useEffect(() => {
+        if (externalQuery) {
+            setQuery(externalQuery);
+        }
+    }, [externalQuery]);
+
+    const saveToHistory = (executedQuery: string) => {
+        const saved = localStorage.getItem("sql_history");
+        const history = saved ? JSON.parse(saved) : [];
+        const newItem = {
+            query: executedQuery,
+            timestamp: Date.now(),
+            database: initialDatabase,
+        };
+        // Keep unique queries, or just add all? Let's add all but limit to 50
+        const updated = [newItem, ...history].slice(0, 50);
+        localStorage.setItem("sql_history", JSON.stringify(updated));
+    };
 
     const runQuery = async (confirmed = false) => {
         setLoading(true);
@@ -44,6 +64,7 @@ export default function SqlEditor({ initialDatabase }: SqlEditorProps) {
 
             if (data.success) {
                 setResults(data);
+                if (!confirmed) saveToHistory(query);
             } else if (data.error === "DESTRUCTIVE_QUERY") {
                 setShowWarning(true);
                 setError(data.message || "Destructive query detected");
@@ -64,7 +85,6 @@ export default function SqlEditor({ initialDatabase }: SqlEditorProps) {
     };
 
     const handleFormat = () => {
-        // Simple mock formatter: uppercase keywords
         const keywords = ["SELECT", "FROM", "WHERE", "GROUP BY", "ORDER BY", "LIMIT", "INSERT INTO", "VALUES", "UPDATE", "SET", "DELETE", "JOIN", "LEFT JOIN", "RIGHT JOIN", "ON", "AND", "OR", "IN"];
         let formatted = query;
         keywords.forEach(kw => {
@@ -75,7 +95,7 @@ export default function SqlEditor({ initialDatabase }: SqlEditorProps) {
     };
 
     return (
-        <div className={styles.container}>
+        <div className={styles.wrapper}>
             <div className={styles.editorGroup}>
                 <textarea
                     className={styles.editor}
@@ -106,7 +126,7 @@ export default function SqlEditor({ initialDatabase }: SqlEditorProps) {
             </div>
 
             {showWarning && (
-                <div className={styles.warning}>
+                <div className={styles.warning} style={{ marginTop: "1rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <AlertTriangle size={20} />
                         <strong>Warning: Destructive Query Detected</strong>
@@ -120,7 +140,7 @@ export default function SqlEditor({ initialDatabase }: SqlEditorProps) {
             )}
 
             {!showWarning && error && (
-                <div className={styles.warning} style={{ borderColor: "#ef4444", color: "#ef4444", backgroundColor: "rgba(239, 68, 68, 0.1)" }}>
+                <div className={styles.warning} style={{ marginTop: "1rem", borderColor: "#ef4444", color: "#ef4444", backgroundColor: "rgba(239, 68, 68, 0.1)" }}>
                     {error}
                 </div>
             )}
