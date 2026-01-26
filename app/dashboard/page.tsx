@@ -20,8 +20,9 @@ import ObjectView from "./ObjectView";
 import UserManagement from "./UserManagement";
 import DiagramView from "./DiagramView";
 import PerformanceDashboard from "./PerformanceDashboard";
+import MockDataView from "./MockDataView";
 
-type ViewType = "browse" | "structure" | "sql" | "search" | "insert" | "operations" | "db_overview" | "server_overview" | "create_table" | "import" | "export" | "history" | "query_builder" | "object_view" | "users" | "diagram" | "performance";
+type ViewType = "browse" | "structure" | "sql" | "search" | "insert" | "operations" | "db_overview" | "server_overview" | "create_table" | "import" | "export" | "history" | "query_builder" | "object_view" | "users" | "diagram" | "performance" | "mock_data";
 
 export default function DashboardPage() {
     const [selectedDb, setSelectedDb] = useState<string | undefined>();
@@ -150,7 +151,9 @@ export default function DashboardPage() {
             case "insert":
                 return <InsertView database={selectedDb} table={selectedTable} onSuccess={() => setActiveView("browse")} />;
             case "operations":
-                return <OperationsView database={selectedDb} table={selectedTable} onTableDropped={handleTableDropped} />;
+                return <OperationsView database={selectedDb} table={selectedTable} onTableDropped={handleTableDropped} onNavigateToMockData={() => setActiveView("mock_data")} />;
+            case "mock_data":
+                return <MockDataView database={selectedDb} table={selectedTable} onSuccess={() => { }} />;
             default:
                 return <TableData database={selectedDb} table={selectedTable} />;
         }
@@ -218,7 +221,7 @@ export default function DashboardPage() {
                                 <button className={`${styles.tab} ${activeView === "browse" ? styles.active : ""}`} onClick={() => setActiveView("browse")}>
                                     <Layout size={14} className={styles.tabIcon} /> Browse
                                 </button>
-                                <button className={`${styles.tab} ${activeView === "db_overview" ? styles.active : ""}`} onClick={() => setActiveView("db_overview")}>
+                                <button className={`${styles.tab} ${activeView === "structure" ? styles.active : ""}`} onClick={() => setActiveView("structure")}>
                                     <Layout size={14} className={styles.tabIcon} /> Structure
                                 </button>
                                 <button className={`${styles.tab} ${activeView === "sql" ? styles.active : ""}`} onClick={() => { setActiveView("sql"); setExternalQuery(""); }}>
@@ -230,14 +233,14 @@ export default function DashboardPage() {
                                 <button className={`${styles.tab} ${activeView === "query_builder" ? styles.active : ""}`} onClick={() => setActiveView("query_builder")}>
                                     <Wand2 size={14} className={styles.tabIcon} /> Query Builder
                                 </button>
-                                <button className={`${styles.tab} ${activeView === "import" ? styles.active : ""}`} onClick={() => setActiveView("import")}>
-                                    <Upload size={14} className={styles.tabIcon} /> Import
-                                </button>
-                                <button className={`${styles.tab} ${activeView === "export" ? styles.active : ""}`} onClick={() => setActiveView("export")}>
-                                    <Download size={14} className={styles.tabIcon} /> Export
+                                <button className={`${styles.tab} ${activeView === "insert" ? styles.active : ""}`} onClick={() => setActiveView("insert")}>
+                                    <FileText size={14} className={styles.tabIcon} /> Insert
                                 </button>
                                 <button className={`${styles.tab} ${activeView === "operations" ? styles.active : ""}`} onClick={() => setActiveView("operations")}>
                                     <Trash2 size={14} className={styles.tabIcon} /> Operations
+                                </button>
+                                <button className={`${styles.tab} ${activeView === "mock_data" ? styles.active : ""}`} onClick={() => setActiveView("mock_data")}>
+                                    <Wand2 size={14} className={styles.tabIcon} /> Mock Data
                                 </button>
                             </>
                         ) : (

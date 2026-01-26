@@ -8,6 +8,9 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const database = searchParams.get("database");
+    const format = searchParams.get("format") || "sql"; // sql, json, csv
+    const includeStructure = searchParams.get("structure") !== "false";
+    const includeData = searchParams.get("data") !== "false";
 
     if (!database) {
         return NextResponse.json({ success: false, error: "Database name is required" }, { status: 400 });
@@ -15,65 +18,89 @@ export async function GET(req: NextRequest) {
 
     try {
         const sanitizedDb = sanitizeIdentifier(database);
-        let sqlDump = `-- MySQL GUI Dump\n`;
-        sqlDump += `-- Host: localhost\n`;
-        sqlDump += `-- Generation Time: ${new Date().toISOString()}\n`;
-        sqlDump += `-- Database: \`${sanitizedDb}\`\n\n`;
-        sqlDump += `SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";\n`;
-        sqlDump += `SET time_zone = "+00:00";\n\n`;
 
         // Get all tables
         const tables: any = await executeQuery(`SHOW TABLES FROM ${sanitizedDb}`);
         const tableNames = tables.map((row: any) => Object.values(row)[0]);
 
-        for (const tableName of tableNames) {
-            const sanitizedTable = sanitizeIdentifier(tableName);
+        let result: any;
+        let contentType = "text/plain";
+        let extension = "txt";
 
-            sqlDump += `-- --------------------------------------------------------\n\n`;
-            sqlDump += `-- Table structure for table \`${sanitizedTable}\`\n\n`;
-            sqlDump += `DROP TABLE IF EXISTS \`${sanitizedTable}\`;\n`;
+        if (format === "sql") {
+            contentType = "text/sql";
+            extension = "sql";
+            let sqlDump = `-- MySQL GUI Dump\n-- Database: \`${sanitizedDb}\`\n\n`;
 
-            // Get Create Table statement
-            const createRes: any = await executeQuery(`SHOW CREATE TABLE ${sanitizedDb}.${sanitizedTable}`);
-            const createSql = createRes[0]["Create Table"];
-            sqlDump += `${createSql};\n\n`;
+            for (const tableName of tableNames) {
+                const sanitizedTable = sanitizeIdentifier(tableName);
 
-            // Get data
-            const rows: any = await executeQuery(`SELECT * FROM ${sanitizedDb}.${sanitizedTable}`);
-            if (rows.length > 0) {
-                sqlDump += `-- Dumping data for table \`${sanitizedTable}\`\n\n`;
-
-                const columns = Object.keys(rows[0]);
-                const colNames = columns.map(c => `\`${sanitizeIdentifier(c)}\``).join(", ");
-
-                // Group inserts in batches of 100 for efficiency
-                const batchSize = 100;
-                for (let i = 0; i < rows.length; i += batchSize) {
-                    const batch = rows.slice(i, i + batchSize);
-                    sqlDump += `INSERT INTO \`${sanitizedTable}\` (${colNames}) VALUES\n`;
-
-                    const values = batch.map((row: any) => {
-                        const rowValues = columns.map(col => {
-                            const val = row[col];
-                            if (val === null) return "NULL";
-                            if (typeof val === "number") return val;
-                            // Escape single quotes
-                            return `'${String(val).replace(/'/g, "''")}'`;
-                        }).join(", ");
-                        return `(${rowValues})`;
-                    }).join(",\n");
-
-                    sqlDump += `${values};\n`;
+                if (includeStructure) {
+                    const createRes: any = await executeQuery(`SHOW CREATE TABLE ${sanitizedDb}.${sanitizedTable}`);
+                    sqlDump += `DROP TABLE IF EXISTS \`${sanitizedTable}\`;\n${createRes[0]["Create Table"]};\n\n`;
                 }
-                sqlDump += `\n`;
+
+                if (includeData) {
+                    const rows: any = await executeQuery(`SELECT * FROM ${sanitizedDb}.${sanitizedTable}`);
+                    if (rows.length > 0) {
+                        const columns = Object.keys(rows[0]);
+                        const colNames = columns.map(c => `\`${sanitizeIdentifier(c)}\``).join(", ");
+                        const values = rows.map((row: any) =>
+                            `(${columns.map(col => {
+                                const val = row[col];
+                                if (val === null) return "NULL";
+                                if (typeof val === "number") return val;
+                                return `'${String(val).replace(/'/g, "''")}'`;
+                            }).join(", ")})`
+                        ).join(",\n");
+                        sqlDump += `INSERT INTO \`${sanitizedTable}\` (${colNames}) VALUES\n${values};\n\n`;
+                    }
+                }
             }
+            result = sqlDump;
+        } else if (format === "json") {
+            contentType = "application/json";
+            extension = "json";
+            const fullData: Record<string, any> = {};
+            for (const tableName of tableNames) {
+                const sanitizedTable = sanitizeIdentifier(tableName);
+                if (includeData) {
+                    const rows: any = await executeQuery(`SELECT * FROM ${sanitizedDb}.${sanitizedTable}`);
+                    fullData[tableName] = rows;
+                } else {
+                    fullData[tableName] = [];
+                }
+            }
+            result = JSON.stringify(fullData, null, 2);
+        } else if (format === "csv") {
+            contentType = "text/csv";
+            extension = "zip"; // CSV export of multiple tables might be better as a zip or combined?
+            // For simplicity, let's just do a combined CSV with markers or just the first table?
+            // Let's do a combined format with table names as headers if multiple.
+            let csv = "";
+            for (const tableName of tableNames) {
+                const sanitizedTable = sanitizeIdentifier(tableName);
+                if (includeData) {
+                    const rows: any = await executeQuery(`SELECT * FROM ${sanitizedDb}.${sanitizedTable}`);
+                    if (rows.length > 0) {
+                        const columns = Object.keys(rows[0]);
+                        csv += `Table: ${tableName}\n`;
+                        csv += columns.join(",") + "\n";
+                        rows.forEach((row: any) => {
+                            csv += columns.map(col => `"${String(row[col] || "").replace(/"/g, '""')}"`).join(",") + "\n";
+                        });
+                        csv += "\n";
+                    }
+                }
+            }
+            result = csv;
+            extension = "csv";
         }
 
-        // Return as a file download
-        return new NextResponse(sqlDump, {
+        return new NextResponse(result, {
             headers: {
-                "Content-Type": "text/sql",
-                "Content-Disposition": `attachment; filename="${database}_dump.sql"`,
+                "Content-Type": contentType,
+                "Content-Disposition": `attachment; filename="${database}_export.${extension}"`,
             },
         });
     } catch (error: any) {

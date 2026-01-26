@@ -2,15 +2,16 @@
 
 import { useState } from "react";
 import styles from "./dashboard.module.css";
-import { AlertCircle, Loader2, Trash2, Database, Table as TableIcon } from "lucide-react";
+import { AlertCircle, Loader2, Trash2, Database, Table as TableIcon, Sparkles } from "lucide-react";
 
 interface OperationsViewProps {
     database: string;
     table: string;
     onTableDropped: () => void;
+    onNavigateToMockData?: () => void;
 }
 
-export default function OperationsView({ database, table, onTableDropped }: OperationsViewProps) {
+export default function OperationsView({ database, table, onTableDropped, onNavigateToMockData }: OperationsViewProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [showConfirm, setShowConfirm] = useState(false);
@@ -56,6 +57,28 @@ export default function OperationsView({ database, table, onTableDropped }: Oper
                     {error}
                 </div>
             )}
+
+            <div className={styles.form} style={{ marginBottom: "2rem" }}>
+                <h3 style={{ color: "var(--primary)", marginBottom: "1rem", display: "flex", alignItems: "center", gap: 8 }}>
+                    <Sparkles size={20} /> Maintenance
+                </h3>
+                <p style={{ fontSize: "0.875rem", color: "#94a3b8", marginBottom: "1.5rem" }}>
+                    Utilities for managing table data and structure performance.
+                </p>
+                <div className={styles.fieldRow}>
+                    <div className={styles.fieldLabel}>
+                        Mock Data Generator
+                    </div>
+                    <div className={styles.fieldInputWrapper}>
+                        <button
+                            className={styles.actionBtn}
+                            onClick={onNavigateToMockData}
+                        >
+                            Generate Sample Data
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             <div className={styles.form} style={{ border: "1px solid #ef4444", backgroundColor: "rgba(239, 68, 68, 0.05)" }}>
                 <h3 style={{ color: "#ef4444", marginBottom: "1rem", display: "flex", alignItems: "center", gap: 8 }}>
