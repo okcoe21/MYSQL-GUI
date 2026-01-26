@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Database, Table, ChevronRight, ChevronDown, LogOut, Plus, Check, X, Sun, Moon, Eye, Terminal, Variable, Users, Activity, Share2 } from "lucide-react";
+import { Database, Table, ChevronRight, ChevronDown, LogOut, Plus, Check, X, Sun, Moon, Eye, Terminal, Variable, Users, Activity, Share2, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import styles from "./dashboard.module.css";
 import { useTheme } from "@/lib/ThemeProvider";
@@ -10,13 +10,14 @@ interface SidebarProps {
     onSelectDb: (db: string) => void;
     onSelectUsers: () => void;
     onSelectPerformance: () => void;
+    onSelectSlowLog: () => void;
     onSelectDiagram: (db: string) => void;
     selectedDb?: string;
     selectedTable?: string;
     selectedObject?: { name: string; type: string };
 }
 
-export default function Sidebar({ onSelectTable, onSelectObject, onSelectDb, onSelectUsers, onSelectPerformance, onSelectDiagram, selectedDb, selectedTable, selectedObject }: SidebarProps) {
+export default function Sidebar({ onSelectTable, onSelectObject, onSelectDb, onSelectUsers, onSelectPerformance, onSelectSlowLog, onSelectDiagram, selectedDb, selectedTable, selectedObject }: SidebarProps) {
     const router = useRouter();
     const { theme, toggleTheme } = useTheme();
     const [databases, setDatabases] = useState<string[]>([]);
@@ -193,6 +194,15 @@ export default function Sidebar({ onSelectTable, onSelectObject, onSelectDb, onS
                 >
                     <Activity size={16} style={{ marginRight: 8, verticalAlign: "middle" }} />
                     Performance
+                </button>
+
+                <button
+                    className={styles.tableBtn}
+                    onClick={onSelectSlowLog}
+                    style={{ width: "100%", textAlign: "left", paddingLeft: "12px" }}
+                >
+                    <Clock size={16} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                    Slow Query Log
                 </button>
             </div>
 

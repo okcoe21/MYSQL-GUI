@@ -14,18 +14,22 @@ This tool provides a streamlined web-based interface for interacting with MySQL 
 ## Key Features
 
 ### Database & Server Management
-- **Server Overview**: Centrally manage all databases on your MySQL server from a single view.
-- **Database Operations**: Perform global actions like creating new databases or dropping existing ones with built-in safety confirmations.
-- **Auto-Sync Navigation**: Sidebar automatically refreshes to reflect any changes made to the database structure.
+- **Server Monitoring**: Real-time health metrics (Uptime, Connections, Queries) and a live process list.
+- **Advanced Schema Support**: Manage Tables, Views, Stored Procedures, and Functions from a unified sidebar.
+- **User Management**: Browser-based interface for auditing MySQL accounts and status.
+- **Slow Query Analysis**: Detect and analyze long-running queries to optimize database performance.
 
-### Advanced Schema & Data Tools
-- **Professional Table Designer**: Define complex schemas with multiple columns, specific data types, lengths, and constraint flags (Primary Key, Auto-Increment, Nullability).
-- **Data Exploration**: High-speed browsing of table data with a clean, formatted grid layout.
-- **Advanced SQL Editor**: Execute custom SQL queries with a powerful editor featuring query formatting and one-click clear options.
+### Developer Productivity
+- **Visual ER Diagrams**: Auto-generated relationship maps using SVG to visualize schema architecture.
+- **Interactive Query Builder**: Drag-and-drop style interface for generating SELECT queries without writing SQL.
+- **Query History & Favorites**: Local-first storage for your most important snippets and recent execution history.
+- **Mock Data Generator**: Seed tables with realistic sample data (Names, Emails, Dates) for rapid prototyping.
 
-### Migration & Portability
-- **Secure Export**: Generate complete SQL dumps including both table structures and data for easy backups.
-- **Reliable Import**: Process and execute large SQL scripts with detailed execution reporting and error tracking.
+### Data Manipulation & Portability
+- **Inline Result Editing**: Edit table data directly in the grid with auto-save functionality.
+- **Power Search & Filter**: Server-side filtering, sorting, and pagination for high-volume datasets.
+- **Multi-Format Export**: Download backups in SQL, JSON, or CSV formats with granular content control.
+- **Script Importer**: Reliable execution of large SQL scripts with real-time error reporting.
 
 ---
 

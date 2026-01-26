@@ -21,8 +21,9 @@ import UserManagement from "./UserManagement";
 import DiagramView from "./DiagramView";
 import PerformanceDashboard from "./PerformanceDashboard";
 import MockDataView from "./MockDataView";
+import SlowQueryLog from "./SlowQueryLog";
 
-type ViewType = "browse" | "structure" | "sql" | "search" | "insert" | "operations" | "db_overview" | "server_overview" | "create_table" | "import" | "export" | "history" | "query_builder" | "object_view" | "users" | "diagram" | "performance" | "mock_data";
+type ViewType = "browse" | "structure" | "sql" | "search" | "insert" | "operations" | "db_overview" | "server_overview" | "create_table" | "import" | "export" | "history" | "query_builder" | "object_view" | "users" | "diagram" | "performance" | "mock_data" | "slow_log";
 
 export default function DashboardPage() {
     const [selectedDb, setSelectedDb] = useState<string | undefined>();
@@ -84,6 +85,10 @@ export default function DashboardPage() {
 
         if (activeView === "performance") {
             return <PerformanceDashboard />;
+        }
+
+        if (activeView === "slow_log") {
+            return <SlowQueryLog />;
         }
 
         if (!selectedDb) {
@@ -168,6 +173,7 @@ export default function DashboardPage() {
                 onSelectDb={handleSelectDb}
                 onSelectUsers={() => setActiveView("users")}
                 onSelectPerformance={() => setActiveView("performance")}
+                onSelectSlowLog={() => setActiveView("slow_log")}
                 onSelectDiagram={(db: string) => { setSelectedDb(db); setActiveView("diagram"); }}
                 selectedDb={selectedDb}
                 selectedTable={selectedTable}
