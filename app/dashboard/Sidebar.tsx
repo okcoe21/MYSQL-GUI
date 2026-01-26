@@ -1,9 +1,8 @@
-"use client";
-
 import { useState, useEffect } from "react";
-import { Database, Table, ChevronRight, ChevronDown, LogOut, Plus, Check, X } from "lucide-react";
+import { Database, Table, ChevronRight, ChevronDown, LogOut, Plus, Check, X, Sun, Moon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import styles from "./dashboard.module.css";
+import { useTheme } from "@/lib/ThemeProvider";
 
 interface SidebarProps {
     onSelectTable: (db: string, table: string) => void;
@@ -14,6 +13,7 @@ interface SidebarProps {
 
 export default function Sidebar({ onSelectTable, onSelectDb, selectedDb, selectedTable }: SidebarProps) {
     const router = useRouter();
+    const { theme, toggleTheme } = useTheme();
     const [databases, setDatabases] = useState<string[]>([]);
     const [expandedDb, setExpandedDb] = useState<string | null>(null);
     const [tables, setTables] = useState<{ [db: string]: string[] }>({});
@@ -105,9 +105,14 @@ export default function Sidebar({ onSelectTable, onSelectDb, selectedDb, selecte
         <aside className={styles.sidebar}>
             <div className={styles.sidebarHeader}>
                 <span className={styles.brand}>MySQL GUI</span>
-                <button onClick={handleLogout} className={styles.logoutBtn} title="Logout">
-                    <LogOut size={18} />
-                </button>
+                <div className={styles.headerActions}>
+                    <button onClick={toggleTheme} className={styles.themeBtn} title="Toggle Theme">
+                        {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+                    </button>
+                    <button onClick={handleLogout} className={styles.logoutBtn} title="Logout">
+                        <LogOut size={18} />
+                    </button>
+                </div>
             </div>
 
             <div className={styles.sidebarSearch}>
