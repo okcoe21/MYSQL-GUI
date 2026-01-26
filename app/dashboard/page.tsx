@@ -18,8 +18,10 @@ import HistoryView from "./HistoryView";
 import VisualQueryBuilder from "./VisualQueryBuilder";
 import ObjectView from "./ObjectView";
 import UserManagement from "./UserManagement";
+import DiagramView from "./DiagramView";
+import PerformanceDashboard from "./PerformanceDashboard";
 
-type ViewType = "browse" | "structure" | "sql" | "search" | "insert" | "operations" | "db_overview" | "server_overview" | "create_table" | "import" | "export" | "history" | "query_builder" | "object_view" | "users";
+type ViewType = "browse" | "structure" | "sql" | "search" | "insert" | "operations" | "db_overview" | "server_overview" | "create_table" | "import" | "export" | "history" | "query_builder" | "object_view" | "users" | "diagram" | "performance";
 
 export default function DashboardPage() {
     const [selectedDb, setSelectedDb] = useState<string | undefined>();
@@ -79,6 +81,10 @@ export default function DashboardPage() {
             return <UserManagement />;
         }
 
+        if (activeView === "performance") {
+            return <PerformanceDashboard />;
+        }
+
         if (!selectedDb) {
             return (
                 <div className={styles.emptyState}>
@@ -114,6 +120,9 @@ export default function DashboardPage() {
                 default:
                     if (activeView === "object_view" && selectedObject) {
                         return <ObjectView database={selectedDb} name={selectedObject.name} type={selectedObject.type} />;
+                    }
+                    if (activeView === "diagram") {
+                        return <DiagramView database={selectedDb} />;
                     }
                     return (
                         <DbOverview
@@ -155,6 +164,8 @@ export default function DashboardPage() {
                 onSelectObject={handleSelectObject}
                 onSelectDb={handleSelectDb}
                 onSelectUsers={() => setActiveView("users")}
+                onSelectPerformance={() => setActiveView("performance")}
+                onSelectDiagram={(db: string) => { setSelectedDb(db); setActiveView("diagram"); }}
                 selectedDb={selectedDb}
                 selectedTable={selectedTable}
                 selectedObject={selectedObject}
@@ -188,6 +199,12 @@ export default function DashboardPage() {
                                 <div className={styles.breadcrumbItem}>
                                     {selectedObject.name} ({selectedObject.type})
                                 </div>
+                            </>
+                        )}
+                        {activeView === "diagram" && (
+                            <>
+                                <span className={styles.breadcrumbSeparator}>&raquo;</span>
+                                <div className={styles.breadcrumbItem}>Diagram</div>
                             </>
                         )}
                     </div>

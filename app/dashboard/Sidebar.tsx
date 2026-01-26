@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Database, Table, ChevronRight, ChevronDown, LogOut, Plus, Check, X, Sun, Moon, Eye, Terminal, Variable, Users } from "lucide-react";
+import { Database, Table, ChevronRight, ChevronDown, LogOut, Plus, Check, X, Sun, Moon, Eye, Terminal, Variable, Users, Activity, Share2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import styles from "./dashboard.module.css";
 import { useTheme } from "@/lib/ThemeProvider";
@@ -9,12 +9,14 @@ interface SidebarProps {
     onSelectObject: (db: string, name: string, type: "view" | "procedure" | "function") => void;
     onSelectDb: (db: string) => void;
     onSelectUsers: () => void;
+    onSelectPerformance: () => void;
+    onSelectDiagram: (db: string) => void;
     selectedDb?: string;
     selectedTable?: string;
     selectedObject?: { name: string; type: string };
 }
 
-export default function Sidebar({ onSelectTable, onSelectObject, onSelectDb, onSelectUsers, selectedDb, selectedTable, selectedObject }: SidebarProps) {
+export default function Sidebar({ onSelectTable, onSelectObject, onSelectDb, onSelectUsers, onSelectPerformance, onSelectDiagram, selectedDb, selectedTable, selectedObject }: SidebarProps) {
     const router = useRouter();
     const { theme, toggleTheme } = useTheme();
     const [databases, setDatabases] = useState<string[]>([]);
@@ -183,6 +185,15 @@ export default function Sidebar({ onSelectTable, onSelectObject, onSelectDb, onS
                     <Users size={16} style={{ marginRight: 8, verticalAlign: "middle" }} />
                     User Management
                 </button>
+
+                <button
+                    className={styles.tableBtn}
+                    onClick={onSelectPerformance}
+                    style={{ width: "100%", textAlign: "left", paddingLeft: "12px" }}
+                >
+                    <Activity size={16} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                    Performance
+                </button>
             </div>
 
             <div className={styles.sidebarContent}>
@@ -202,6 +213,24 @@ export default function Sidebar({ onSelectTable, onSelectObject, onSelectDb, onS
 
                             {expandedDb === db && (
                                 <div className={styles.tableList}>
+                                    {/* DB Summary Link */}
+                                    <button
+                                        className={`${styles.tableBtn} ${selectedDb === db && !selectedTable && !selectedObject ? styles.active : ""}`}
+                                        onClick={() => onSelectDb(db)}
+                                        style={{ fontWeight: "bold" }}
+                                    >
+                                        <Activity size={12} style={{ marginRight: 8 }} /> Overview
+                                    </button>
+
+                                    {/* Diagram Link */}
+                                    <button
+                                        className={styles.tableBtn}
+                                        onClick={(e) => { e.stopPropagation(); onSelectDiagram(db); }}
+                                        style={{ color: "var(--primary)" }}
+                                    >
+                                        <Share2 size={12} style={{ marginRight: 8 }} /> ER Diagram
+                                    </button>
+
                                     {dbObjects[db] ? (
                                         <>
                                             {/* Tables Section */}
