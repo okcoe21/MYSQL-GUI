@@ -35,7 +35,15 @@ export default function MockDataView({ database, table, onSuccess }: MockDataVie
                 const initial: Record<string, string> = {};
                 result.structure.forEach((col: any) => {
                     if (col.Extra !== "auto_increment") {
-                        initial[col.Field] = "text";
+                        if (col.Type.includes("int")) {
+                            initial[col.Field] = "integer";
+                        } else if (col.Type.includes("date")) {
+                            initial[col.Field] = "date";
+                        } else if (col.Type.includes("datetime") || col.Type.includes("timestamp")) {
+                            initial[col.Field] = "datetime";
+                        } else {
+                            initial[col.Field] = "text";
+                        }
                     }
                 });
                 setBlueprint(initial);
@@ -120,6 +128,7 @@ export default function MockDataView({ database, table, onSuccess }: MockDataVie
                                             <option value="email">Email Address</option>
                                             <option value="phone">Phone Number</option>
                                             <option value="date">Date</option>
+                                            <option value="datetime">DateTime</option>
                                             <option value="integer">Integer</option>
                                         </select>
                                     </td>

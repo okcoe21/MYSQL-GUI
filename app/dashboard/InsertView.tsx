@@ -127,8 +127,16 @@ export default function InsertView({ database, table, onSuccess }: InsertViewPro
                     }
 
                     const isNullable = col.Null === "YES";
-                    const inputType = col.Type.includes("int") ? "number" :
-                        col.Type.includes("date") ? "date" : "text";
+                    let inputType = "text";
+                    if (col.Type.includes("int")) {
+                        inputType = "number";
+                    } else if (col.Type === "date" || col.Type.startsWith("date(")) {
+                        inputType = "date";
+                    } else if (col.Type.includes("datetime") || col.Type.includes("timestamp")) {
+                        inputType = "datetime-local";
+                    } else if (col.Type.includes("time")) {
+                        inputType = "time";
+                    }
 
                     return (
                         <div key={col.Field} className={styles.fieldRow}>

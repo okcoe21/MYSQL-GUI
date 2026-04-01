@@ -10,6 +10,7 @@ interface TableDataProps {
 export default function TableData({ database, table }: TableDataProps) {
     const [data, setData] = useState<any[]>([]);
     const [columns, setColumns] = useState<string[]>([]);
+    const [structure, setStructure] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [deletingIdx, setDeletingIdx] = useState<number | null>(null);
@@ -24,6 +25,18 @@ export default function TableData({ database, table }: TableDataProps) {
     // Inline Editing State
     const [editingCell, setEditingCell] = useState<{ idx: number; col: string } | null>(null);
     const [editValue, setEditValue] = useState("");
+
+    const fetchStructure = useCallback(async () => {
+        try {
+            const res = await fetch(`/api/structure?database=${database}&table=${table}`);
+            const result = await res.json();
+            if (result.success) {
+                setStructure(result.structure);
+            }
+        } catch {
+            // Ignore structure fetch errors
+        }
+    }, [database, table]);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -52,7 +65,8 @@ export default function TableData({ database, table }: TableDataProps) {
     useEffect(() => {
         setOffset(0); // Reset offset when table or sort changes
         fetchData();
-    }, [database, table, sortCol, sortOrder, fetchData]);
+        fetchStructure();
+    }, [database, table, sortCol, sortOrder, fetchData, fetchStructure]);
 
     useEffect(() => {
         fetchData();
@@ -202,25 +216,58 @@ export default function TableData({ database, table }: TableDataProps) {
                                             key={col}
                                             className={styles.editableCell}
                                             onDoubleClick={() => {
+                                                const colInfo = structure.find(s => s.Field === col);
+                                                let initialValue = row[col] === null ? "" : String(row[col]);
+                                                if (colInfo && (colInfo.Type.includes("datetime") || colInfo.Type.includes("timestamp")) && initialValue) {
+                                                    // Convert MySQL datetime to datetime-local format
+                                                    initialValue = initialValue.replace(' ', 'T').slice(0, 16);
+                                                }
                                                 setEditingCell({ idx, col });
-                                                setEditValue(row[col] === null ? "" : String(row[col]));
+                                                setEditValue(initialValue);
                                             }}
                                         >
-                                            {editingCell?.idx === idx && editingCell?.col === col ? (
-                                                <input
-                                                    className={styles.inlineInput}
-                                                    autoFocus
-                                                    value={editValue}
-                                                    onChange={(e) => setEditValue(e.target.value)}
-                                                    onBlur={() => handleUpdateCell(idx, col)}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === "Enter") handleUpdateCell(idx, col);
-                                                        if (e.key === "Escape") setEditingCell(null);
-                                                    }}
-                                                />
-                                            ) : (
+                                            {editingCell?.idx === idx && editingCell?.col === col ? (() => {
+                                                const colInfo = structure.find(s => s.Field === col);
+                                                let inputType = "text";
+                                                if (colInfo) {
+                                                    if (colInfo.Type.includes("int")) {
+                                                        inputType = "number";
+                                                    } else if (colInfo.Type === "date" || colInfo.Type.startsWith("date(")) {
+                                                        inputType = "date";
+                                                    } else if (colInfo.Type.includes("datetime") || colInfo.Type.includes("timestamp")) {
+                                                        inputType = "datetime-local";
+                                                    } else if (colInfo.Type.includes("time")) {
+                                                        inputType = "time";
+                                                    }
+                                                }
+                                                return (
+                                                    <input
+                                                        type={inputType}
+                                                        className={styles.inlineInput}
+                                                        autoFocus
+                                                        value={editValue}
+                                                        onChange={(e) => setEditValue(e.target.value)}
+                                                        onBlur={() => handleUpdateCell(idx, col)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === "Enter") handleUpdateCell(idx, col);
+                                                            if (e.key === "Escape") setEditingCell(null);
+                                                        }}
+                                                    />
+                                                );
+                                            })() : (
                                                 <span title={String(row[col])}>
-                                                    {row[col] === null ? <em style={{ color: "#64748b" }}>NULL</em> : String(row[col])}
+                                                    {row[col] === null ? <em style={{ color: "#64748b" }}>NULL</em> : (() => {
+                                                        const colInfo = structure.find(s => s.Field === col);
+                                                        if (colInfo && (colInfo.Type.includes('datetime') || colInfo.Type.includes('timestamp')) && row[col]) {
+                                                            try {
+                                                                const date = new Date(row[col]);
+                                                                return date.toLocaleString();
+                                                            } catch {
+                                                                return String(row[col]);
+                                                            }
+                                                        }
+                                                        return String(row[col]);
+                                                    })()}
                                                 </span>
                                             )}
                                         </td>

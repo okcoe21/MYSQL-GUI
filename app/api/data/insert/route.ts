@@ -16,11 +16,27 @@ export async function POST(req: NextRequest) {
         const sanitizedDb = sanitizeIdentifier(database);
         const sanitizedTable = sanitizeIdentifier(table);
 
-        const columns = Object.keys(data).map(col => sanitizeIdentifier(col)).join(", ");
-        const placeholders = Object.keys(data).map(() => "?").join(", ");
-        const values = Object.values(data);
+        // Fetch table structure to know column types
+        const structureQuery = `DESCRIBE ${sanitizedDb}.${sanitizedTable}`;
+        const structure = await executeQuery(structureQuery) as any[];
 
-        const query = `INSERT INTO ${sanitizedDb}.${sanitizedTable} (${columns}) VALUES (${placeholders})`;
+        const columns = Object.keys(data);
+        const sanitizedColumns = columns.map(col => sanitizeIdentifier(col));
+        const placeholders = columns.map(() => "?").join(", ");
+        const values = columns.map(col => {
+            const value = data[col];
+            const colInfo = structure.find(s => s.Field === col);
+            if (colInfo && (colInfo.Type.includes('datetime') || colInfo.Type.includes('timestamp')) && typeof value === 'string') {
+                // Try to parse ISO string and convert to MySQL format
+                const date = new Date(value);
+                if (!isNaN(date.getTime())) {
+                    return date.toISOString().slice(0, 19);
+                }
+            }
+            return value;
+        });
+
+        const query = `INSERT INTO ${sanitizedDb}.${sanitizedTable} (${sanitizedColumns.join(", ")}) VALUES (${placeholders})`;
 
         const result: any = await executeQuery(query, values);
 

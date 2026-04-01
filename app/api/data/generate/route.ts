@@ -34,6 +34,11 @@ export async function POST(req: NextRequest) {
                     const start = new Date(2020, 0, 1).getTime();
                     const end = new Date().getTime();
                     return new Date(start + Math.random() * (end - start)).toISOString().split('T')[0];
+                case "datetime":
+                    const startDt = new Date(2020, 0, 1).getTime();
+                    const endDt = new Date().getTime();
+                    const randomDate = new Date(startDt + Math.random() * (endDt - startDt));
+                    return randomDate.toISOString().slice(0, 19);
                 case "integer":
                     return Math.floor(Math.random() * 10000);
                 case "text":
