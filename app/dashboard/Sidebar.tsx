@@ -85,25 +85,64 @@ export default function Sidebar({ onSelectTable, onSelectObject, onSelectDb, onS
     const fetchDbObjects = async (db: string) => {
         if (dbObjects[db]) return;
         try {
+            // Fetch tables first
             const tableRes = await fetch(`/api/tables?database=${db}`);
             const tableData = await tableRes.json();
 
-            const objectRes = await fetch(`/api/objects?database=${db}`);
-            const objectData = await objectRes.json();
+            // Fetch other database objects (views, procedures, functions)
+            let views: string[] = [];
+            let procedures: string[] = [];
+            let functions: string[] = [];
 
-            if (tableData.success && objectData.success) {
+            try {
+                const objectRes = await fetch(`/api/objects?database=${db}`);
+                const objectData = await objectRes.json();
+                if (objectData.success) {
+                    views = objectData.views || [];
+                    procedures = objectData.procedures || [];
+                    functions = objectData.functions || [];
+                } else {
+                    console.warn(`Failed to fetch objects for DB ${db}:`, objectData.error);
+                }
+            } catch (err) {
+                console.error(`Error fetching objects for DB ${db}:`, err);
+            }
+
+            if (tableData.success) {
                 setDbObjects((prev) => ({
                     ...prev,
                     [db]: {
-                        tables: tableData.tables,
-                        views: objectData.views,
-                        procedures: objectData.procedures,
-                        functions: objectData.functions
+                        tables: tableData.tables || [],
+                        views,
+                        procedures,
+                        functions
+                    }
+                }));
+            } else {
+                console.error(`Failed to fetch tables for DB ${db}:`, tableData.error);
+                // Set empty arrays to prevent permanent "Loading..." state
+                setDbObjects((prev) => ({
+                    ...prev,
+                    [db]: {
+                        tables: [],
+                        views: [],
+                        procedures: [],
+                        functions: []
                     }
                 }));
             }
         } catch (err) {
             console.error("Failed to fetch database objects", err);
+            // Ensure we clear loading state by setting empty lists on error
+            setDbObjects((prev) => ({
+                ...prev,
+                [db]: {
+                    tables: [],
+                    views: [],
+                    procedures: [],
+                    functions: []
+                }
+            }));
         }
     };
 
