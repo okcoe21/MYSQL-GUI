@@ -19,14 +19,16 @@ The MySQL GUI is a **Next.js 14 Web Application** using the **App Router** archi
 
 **State Management:**
 - **Local State:** Uses standard React `useState` for UI transitions.
-- **Context:** `ThemeProvider` manages UI theme (dark/light).
+- **Refresh Sync:** Incorporates a `refreshKey` state incremented in parents (like `page.tsx` on Mock Data generation success) to trigger `useEffect` re-fetches in child data tables (`TableData.tsx`).
+- **Context:** `ThemeProvider` manages UI theme.
 - **Server Communication:** Standard `fetch` calls to Next.js API routes.
 
 ## Backend Architecture (API Layer)
 
 **Pattern:** Route Handlers (`app/api/*/route.ts`)
 - The backend is a thin adapter between the frontend and the MySQL server.
-- **Statelessness:** Connection details are *not* stored on the server disk; they are extracted from the user's encrypted JWT session for every request.
+- **Statelessness:** Connection details are *not* stored on the server disk; they are extracted from the user's JWT session.
+- **Database Compatibility:** Fallback handlers exist for metadata endpoints. For example, if retrieval of stored procedures/functions fails due to legacy MariaDB `mysql.proc` schema version mismatches (e.g. column count errors), the route handler catches the exception and falls back to a sequence of `SHOW STATUS` and `SHOW CREATE` statements, normalizing the output payload.
 - **Execution Flow:**
     1. Authenticate session (`getSession`).
     2. Extract connection params (host, user, etc.).

@@ -38,11 +38,13 @@
     ```
 - **Error Handling:** Always wrap API logic in `try/catch` and return `{ success: false, error: "message" }` with a 500 status code.
 
-## Styling
+## Styling & Design Tokens
 
-- **CSS Modules:** Each section has its own `.module.css` (e.g., `dashboard.module.css`).
-- **Theming:** Use CSS variables (defined in `globals.css`) for consistent light/dark mode support.
-- **Layouts:** Use Flexbox and Grid. Avoid fixed sizing; prioritize responsiveness.
+- **CSS Modules:** Styles are modularized using `.module.css` files, referencing global design tokens defined in `globals.css`.
+- **Theme Constraints:** The styling adheres to a terminal-core dark aesthetic (base color `#0d0d0d`, panels `#1a1a1a`, borders `#2a2a2a`, and text `#e8e8e8`).
+- **Typography:** The `JetBrains Mono` font family is loaded and enforced globally for all monospaced elements, headers, and inputs.
+- **Decoration Constraints:** All rounded borders are restricted to a maximum of `2px` (using `var(--radius-max)`). Shadows, gradients, blur effects, and glassmorphism are completely avoided.
+- **Interactive State Indication:** Electric green (`#00ff9d`) is used strictly as a highlight color for active state indicators, focus borders, and hover text/icons, with no background changes on hover.
 
 ---
 
