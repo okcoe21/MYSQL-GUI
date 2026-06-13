@@ -751,3 +751,63 @@
     position: relative;
     padding: var(--space-4);
 }
+
+/* SQL Autocomplete Dropdown */
+.editorWrapper {
+    position: relative;
+    width: 100%;
+}
+
+.autocompleteDropdown {
+    position: absolute;
+    z-index: 100;
+    width: 320px;
+    max-height: calc(8 * 28px);
+    overflow-y: auto;
+    background-color: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-max);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    top: 152px; /* absolute position below the 150px textarea + 2px margin */
+    left: 16px; /* indent to align with text area content */
+}
+
+.autocompleteRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 28px;
+    padding: 0 var(--space-3);
+    cursor: pointer;
+    user-select: none;
+    transition: var(--transition-fast);
+    border-left: 1px solid transparent;
+}
+
+.autocompleteRow:hover {
+    background-color: var(--bg-base);
+}
+
+.autocompleteRowActive {
+    background-color: var(--bg-base);
+    border-left: 1px solid var(--accent);
+}
+
+.autocompleteRowActive .autocompleteLabel {
+    color: var(--accent);
+}
+
+.autocompleteLabel {
+    color: var(--foreground);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.autocompleteKind {
+    font-size: var(--font-xs);
+    color: var(--text-muted);
+    text-transform: lowercase;
+}

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import styles from "./dashboard.module.css";
 import { Play, AlertTriangle, CheckCircle } from "lucide-react";
+import { getSuggestions, SuggestionItem, SchemaData } from "@/lib/sqlAutocomplete";
 
 interface SqlEditorProps {
     initialDatabase?: string;
@@ -24,6 +25,106 @@ export default function SqlEditor({ initialDatabase, externalQuery }: SqlEditorP
     const [results, setResults] = useState<QueryResult | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [showWarning, setShowWarning] = useState(false);
+
+    // Autocomplete states
+    const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
+    const [selectedIndex, setSelectedIndex] = useState(0);
+    const [dropdownVisible, setDropdownVisible] = useState(false);
+
+    const schemaDataRef = useRef<SchemaData | null>(null);
+    const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+    useEffect(() => {
+        if (!initialDatabase) {
+            schemaDataRef.current = null;
+            return;
+        }
+
+        let isMounted = true;
+        fetch(`/api/schema/suggestions?database=${encodeURIComponent(initialDatabase)}`)
+            .then((res) => res.json())
+            .then((data) => {
+                if (isMounted) {
+                    schemaDataRef.current = data;
+                }
+            })
+            .catch((err) => {
+                console.error("Failed to fetch schema suggestions:", err);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [initialDatabase]);
+
+    const triggerAutocomplete = (text: string, cursorPos: number) => {
+        if (!schemaDataRef.current) {
+            setSuggestions([]);
+            setDropdownVisible(false);
+            return;
+        }
+        const list = getSuggestions(text, cursorPos, schemaDataRef.current);
+        setSuggestions(list);
+        setSelectedIndex(0);
+        setDropdownVisible(list.length > 0);
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const val = e.target.value;
+        const cursorPos = e.target.selectionStart;
+        setQuery(val);
+        triggerAutocomplete(val, cursorPos);
+    };
+
+    const insertSuggestion = (suggestion: SuggestionItem) => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+
+        const cursorPos = textarea.selectionStart;
+        const textBefore = query.slice(0, cursorPos);
+        const textAfter = query.slice(cursorPos);
+
+        const currentTokenMatch = textBefore.match(/([a-zA-Z0-9_]+)$/);
+        const currentToken = currentTokenMatch ? currentTokenMatch[1] : "";
+
+        const beforeToken = textBefore.slice(0, -currentToken.length);
+        const replacement = suggestion.label;
+
+        const newQuery = beforeToken + replacement + textAfter;
+        setQuery(newQuery);
+        setSuggestions([]);
+        setDropdownVisible(false);
+
+        const newCursorPos = beforeToken.length + replacement.length;
+        setTimeout(() => {
+            textarea.focus();
+            textarea.setSelectionRange(newCursorPos, newCursorPos);
+        }, 0);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (dropdownVisible && suggestions.length > 0) {
+            if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setSelectedIndex((prev) => (prev + 1) % suggestions.length);
+            } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setSelectedIndex((prev) => (prev - 1 + suggestions.length) % suggestions.length);
+            } else if (e.key === "Enter" || e.key === "Tab") {
+                e.preventDefault();
+                insertSuggestion(suggestions[selectedIndex]);
+            } else if (e.key === "Escape") {
+                e.preventDefault();
+                setDropdownVisible(false);
+            }
+        }
+    };
+
+    const handleBlur = () => {
+        setTimeout(() => {
+            setDropdownVisible(false);
+        }, 150);
+    };
 
     useEffect(() => {
         if (externalQuery) {
@@ -97,13 +198,34 @@ export default function SqlEditor({ initialDatabase, externalQuery }: SqlEditorP
     return (
         <div className={styles.wrapper}>
             <div className={styles.editorGroup}>
-                <textarea
-                    className={styles.editor}
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Enter your SQL query here... (e.g. SELECT * FROM users LIMIT 10)"
-                    spellCheck={false}
-                />
+                <div className={styles.editorWrapper}>
+                    <textarea
+                        ref={textareaRef}
+                        className={styles.editor}
+                        value={query}
+                        onChange={handleChange}
+                        onKeyDown={handleKeyDown}
+                        onBlur={handleBlur}
+                        placeholder="Enter your SQL query here... (e.g. SELECT * FROM users LIMIT 10)"
+                        spellCheck={false}
+                    />
+                    {dropdownVisible && suggestions.length > 0 && (
+                        <div className={styles.autocompleteDropdown}>
+                            {suggestions.map((item, idx) => (
+                                <div
+                                    key={idx}
+                                    className={`${styles.autocompleteRow} ${
+                                        idx === selectedIndex ? styles.autocompleteRowActive : ""
+                                    }`}
+                                    onClick={() => insertSuggestion(item)}
+                                >
+                                    <span className={styles.autocompleteLabel}>{item.label}</span>
+                                    <span className={styles.autocompleteKind}>{item.kind}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
                 <div className={styles.controls}>
                     <div className={`${styles.flexRow} ${styles.flexGapSm}`}>
                         <button className={styles.actionBtn} onClick={handleClear} title="Clear Query">
