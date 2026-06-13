@@ -3,7 +3,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
-A high-performance, modern, and secure MySQL administration interface designed for local development and professional database management. This tool bridges the gap between complex enterprise suites and simple command-line tools with a **vibrant, dark-first UI** and **real-time observability**.
+A high-performance, modern, and secure MySQL administration interface designed for local development and professional database management. This tool bridges the gap between complex enterprise suites and simple command-line tools with a **terminal-core dark UI (Retro-Computing & Industrial design manual aesthetic)** and **real-time observability**.
 
 ---
 
@@ -11,7 +11,7 @@ A high-performance, modern, and secure MySQL administration interface designed f
 
 ### Server & Schema Management
 - **Real-time Monitoring**: Live dashboard showing Queries/sec, Active Connections, and Network Traffic via SVG-based time-series charts.
-- **Advanced Object Support**: Full management suite for **Tables, Views, Stored Procedures, and Functions**.
+- **Advanced Object Support**: Full management suite for **Tables, Views, Stored Procedures, and Functions** with automatic schema-mismatch fallback layers.
 - **User Permissions**: Audit and manage MySQL users, hosts, and account lock statuses centrally.
 - **Slow Query Forensic**: Identify execution bottlenecks by analyzing the server's slow query log directly.
 
@@ -19,7 +19,7 @@ A high-performance, modern, and secure MySQL administration interface designed f
 - **Visual ER Diagrams**: Auto-generated interactive relationship maps to visualize your database architecture.
 - **Intelligent Query Builder**: Visual "No-Code" interface for generating optimized `SELECT` queries.
 - **Local History & Favorites**: Persisted query snippets and execution history for rapid workflow.
-- **Smart Seeding**: Built-in **Mock Data Generator** for names, emails, dates, and random text with bulk insertion support.
+- **Smart Seeding**: Built-in **Mock Data Generator** for names, emails, dates, and random text with bulk insertion support and table synchronization.
 
 ### Data Manipulation & Portability
 - **Direct Cell Editing**: Double-click any cell in the data grid to update the record instantly with server-side validation.
@@ -44,7 +44,7 @@ The application is engineered with a **Security-First** mindset:
 
 - **Framework**: [Next.js 15](https://nextjs.org/) (App Router, Node.js Runtime)
 - **UI Engine**: React 19 + Lucide Icons
-- **Typography & Styling**: Unified CSS Design System (Vanilla CSS Modules)
+- **Typography & Styling**: Terminal-Core Design System (JetBrains Mono monospace, 2px borders max, zero decoration, Vanilla CSS Modules)
 - **Database Engine**: `mysql2` with optimized Connection Pooling
 - **Authentication**: `jose` for encrypted session management
 
