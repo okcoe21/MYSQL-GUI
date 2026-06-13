@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import styles from "./dashboard.module.css";
 import { Play, AlertTriangle, CheckCircle } from "lucide-react";
 import { getSuggestions, SuggestionItem, SchemaData } from "@/lib/sqlAutocomplete";
+import { explainQuery } from "@/lib/sqlExplainer";
 
 interface SqlEditorProps {
     initialDatabase?: string;
@@ -25,6 +26,8 @@ export default function SqlEditor({ initialDatabase, externalQuery }: SqlEditorP
     const [results, setResults] = useState<QueryResult | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [showWarning, setShowWarning] = useState(false);
+    const [explainText, setExplainText] = useState("");
+    const [explainVisible, setExplainVisible] = useState(false);
 
     // Autocomplete states
     const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
@@ -195,6 +198,29 @@ export default function SqlEditor({ initialDatabase, externalQuery }: SqlEditorP
         setQuery(formatted);
     };
 
+    const handleExplain = () => {
+        const text = explainQuery(query);
+        setExplainText(text);
+        setExplainVisible(true);
+    };
+
+    const renderExplanation = (text: string) => {
+        if (!text.includes('⚠')) {
+            return <span>{text}</span>;
+        }
+        const warningMatch = text.match(/^(⚠[^.]+?\.)\s*(.*)$/);
+        if (warningMatch) {
+            const [_, warningPart, restPart] = warningMatch;
+            return (
+                <>
+                    <span className={styles.warningText}>{warningPart}</span>
+                    {restPart && <span> {restPart}</span>}
+                </>
+            );
+        }
+        return <span className={styles.warningText}>{text}</span>;
+    };
+
     return (
         <div className={styles.wrapper}>
             <div className={styles.editorGroup}>
@@ -235,16 +261,47 @@ export default function SqlEditor({ initialDatabase, externalQuery }: SqlEditorP
                             Format
                         </button>
                     </div>
-                    <button
-                        className={styles.primaryBtn}
-                        onClick={() => runQuery(false)}
-                        disabled={loading || !query.trim()}
-                    >
-                        <Play size={16} className={styles.tabIcon} />
-                        Run Query
-                    </button>
+                    <div className={`${styles.flexRow} ${styles.flexGapSm}`}>
+                        <button
+                            className={styles.actionBtn}
+                            onClick={handleExplain}
+                            disabled={!query.trim()}
+                            title="Explain Query"
+                        >
+                            Explain ✦
+                        </button>
+                        <button
+                            className={styles.primaryBtn}
+                            onClick={() => runQuery(false)}
+                            disabled={loading || !query.trim()}
+                        >
+                            <Play size={16} className={styles.tabIcon} />
+                            Run Query
+                        </button>
+                    </div>
                 </div>
             </div>
+
+            {explainVisible && (
+                <div className={styles.explainPanel}>
+                    <div className={styles.explainHeader}>
+                        <span className={styles.explainTitle}>✦ QUERY EXPLANATION</span>
+                        <button
+                            className={styles.explainCloseBtn}
+                            onClick={() => {
+                                setExplainVisible(false);
+                                setExplainText("");
+                            }}
+                            title="Close Explanation"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                    <div className={styles.explainBody}>
+                        {renderExplanation(explainText)}
+                    </div>
+                </div>
+            )}
 
             {showWarning && (
                 <div className={`${styles.warning} ${styles.marginTopSm}`}>

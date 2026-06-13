@@ -811,3 +811,58 @@
     color: var(--text-muted);
     text-transform: lowercase;
 }
+
+.explainPanel {
+    --color-text-warning: #ef4444;
+    margin-top: var(--space-4);
+    background-color: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-max);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.explainHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-2) var(--space-4);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.explainTitle {
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+.explainCloseBtn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: var(--transition-fast);
+}
+
+.explainCloseBtn:hover {
+    color: var(--accent);
+}
+
+.explainBody {
+    padding: var(--space-4);
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--foreground);
+    white-space: pre-wrap;
+}
+
+.warningText {
+    color: var(--color-text-warning);
+}
