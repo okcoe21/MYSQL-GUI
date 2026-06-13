@@ -49,26 +49,22 @@ export default function ObjectView({ database, name, type }: ObjectViewProps) {
         );
     }
 
-    if (error) {
-        return (
-            <div className={styles.error}>
-                <AlertCircle size={24} style={{ marginRight: 8 }} />
-                {error}
-            </div>
-        );
-    }
-
-    if (!data) return null;
-
-    const definition = data.VIEW_DEFINITION || data.ROUTINE_DEFINITION;
+    const definition = data?.VIEW_DEFINITION || data?.ROUTINE_DEFINITION;
 
     return (
         <div className={styles.wrapper}>
+            {error && (
+                <div className={styles.warning} style={{ color: "#ef4444", borderColor: "#ef4444", marginBottom: "1rem", backgroundColor: "rgba(239, 68, 68, 0.05)" }}>
+                    <AlertCircle size={16} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                    {error}
+                </div>
+            )}
+
             <div className={styles.count} style={{ display: "flex", justifyContent: "space-between" }}>
                 <div>
                     {type.charAt(0).toUpperCase() + type.slice(1)}: <strong>{name}</strong>
                 </div>
-                {data.DATA_TYPE && <div className={styles.linkText}>Return Type: {data.DATA_TYPE}</div>}
+                {data?.DATA_TYPE && <div className={styles.linkText}>Return Type: {data.DATA_TYPE}</div>}
             </div>
 
             <div className={styles.form} style={{ padding: "1.5rem" }}>
@@ -76,23 +72,29 @@ export default function ObjectView({ database, name, type }: ObjectViewProps) {
                     <Code size={18} />
                     <h3 style={{ margin: 0 }}>Definition</h3>
                 </div>
-                <code style={{
-                    display: "block",
-                    padding: "1rem",
-                    background: "var(--input-bg)",
-                    borderRadius: "8px",
-                    border: "1px solid var(--border)",
-                    whiteSpace: "pre-wrap",
-                    fontSize: "0.9rem",
-                    fontFamily: "monospace",
-                    maxHeight: "60vh",
-                    overflowY: "auto"
-                }}>
-                    {definition}
-                </code>
+                {definition ? (
+                    <code style={{
+                        display: "block",
+                        padding: "1rem",
+                        background: "var(--input-bg)",
+                        borderRadius: "8px",
+                        border: "1px solid var(--border)",
+                        whiteSpace: "pre-wrap",
+                        fontSize: "0.9rem",
+                        fontFamily: "monospace",
+                        maxHeight: "60vh",
+                        overflowY: "auto"
+                    }}>
+                        {definition}
+                    </code>
+                ) : (
+                    <div style={{ color: "var(--text-muted)", fontSize: "0.9rem", fontStyle: "italic" }}>
+                        No definition found or failed to load.
+                    </div>
+                )}
             </div>
 
-            {type === "view" && (
+            {type === "view" && data && (
                 <div className={styles.warning} style={{ marginTop: "1rem", border: "1px solid var(--border)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <Info size={16} />

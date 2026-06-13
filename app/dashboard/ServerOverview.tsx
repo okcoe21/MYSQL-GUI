@@ -125,59 +125,59 @@ export default function ServerOverview({ onSelectDb, onRefreshSidebar }: ServerO
         <div className={styles.wrapper}>
             {/* Status Metrics Cards */}
             {status && (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "2rem" }}>
-                    <div className={styles.form} style={{ padding: "1rem", display: "flex", gap: "1rem", alignItems: "center" }}>
-                        <div style={{ background: "rgba(56, 189, 248, 0.1)", padding: "10px", borderRadius: "8px" }}>
-                            <Clock size={20} color="#38bdf8" />
+                <div className={styles.metricGrid}>
+                    <div className={styles.metricCard}>
+                        <div className={styles.metricIconWrapper}>
+                            <Clock size={20} className={styles.tabIcon} />
                         </div>
                         <div>
-                            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Uptime</div>
-                            <div style={{ fontWeight: "bold" }}>{formatUptime(status.uptime)}</div>
+                            <div className={styles.metricLabel}>Uptime</div>
+                            <div className={styles.metricValue}>{formatUptime(status.uptime)}</div>
                         </div>
                     </div>
-                    <div className={styles.form} style={{ padding: "1rem", display: "flex", gap: "1rem", alignItems: "center" }}>
-                        <div style={{ background: "rgba(16, 185, 129, 0.1)", padding: "10px", borderRadius: "8px" }}>
-                            <Users size={20} color="#10b981" />
+                    <div className={styles.metricCard}>
+                        <div className={styles.metricIconWrapper}>
+                            <Users size={20} className={styles.tabIcon} />
                         </div>
                         <div>
-                            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Connections</div>
-                            <div style={{ fontWeight: "bold" }}>{status.threads_connected}</div>
+                            <div className={styles.metricLabel}>Connections</div>
+                            <div className={styles.metricValue}>{status.threads_connected}</div>
                         </div>
                     </div>
-                    <div className={styles.form} style={{ padding: "1rem", display: "flex", gap: "1rem", alignItems: "center" }}>
-                        <div style={{ background: "rgba(245, 158, 11, 0.1)", padding: "10px", borderRadius: "8px" }}>
-                            <Activity size={20} color="#f59e0b" />
+                    <div className={styles.metricCard}>
+                        <div className={styles.metricIconWrapper}>
+                            <Activity size={20} className={styles.tabIcon} />
                         </div>
                         <div>
-                            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Running</div>
-                            <div style={{ fontWeight: "bold" }}>{status.threads_running}</div>
+                            <div className={styles.metricLabel}>Running</div>
+                            <div className={styles.metricValue}>{status.threads_running}</div>
                         </div>
                     </div>
-                    <div className={styles.form} style={{ padding: "1rem", display: "flex", gap: "1rem", alignItems: "center" }}>
-                        <div style={{ background: "rgba(139, 92, 246, 0.1)", padding: "10px", borderRadius: "8px" }}>
-                            <Zap size={20} color="#8b5cf6" />
+                    <div className={styles.metricCard}>
+                        <div className={styles.metricIconWrapper}>
+                            <Zap size={20} className={styles.tabIcon} />
                         </div>
                         <div>
-                            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Total Queries</div>
-                            <div style={{ fontWeight: "bold" }}>{status.queries.toLocaleString()}</div>
+                            <div className={styles.metricLabel}>Total Queries</div>
+                            <div className={styles.metricValue}>{status.queries.toLocaleString()}</div>
                         </div>
                     </div>
                 </div>
             )}
 
-            <div className={styles.count} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                    <Database size={18} style={{ marginRight: 8, verticalAlign: "middle" }} />
+            <div className={`${styles.count} ${styles.flexBetween}`}>
+                <div className={`${styles.flexRow} ${styles.flexGapSm}`}>
+                    <Database size={18} className={styles.tabIcon} />
                     Databases ({databases.length})
                 </div>
                 <button className={styles.actionBtn} onClick={() => setShowCreateDb(!showCreateDb)}>
-                    <Plus size={14} style={{ marginRight: 4 }} /> Create Database
+                    <Plus size={14} className={styles.tabIcon} /> Create Database
                 </button>
             </div>
 
             {showCreateDb && (
-                <div className={styles.form} style={{ marginBottom: "1.5rem", padding: "1rem" }}>
-                    <div style={{ display: "flex", gap: "8px" }}>
+                <div className={`${styles.form} ${styles.marginBottomMd}`} style={{ padding: "var(--space-4)" }}>
+                    <div className={`${styles.flexRow} ${styles.flexGapSm}`}>
                         <input
                             type="text"
                             placeholder="New database name"
@@ -187,7 +187,7 @@ export default function ServerOverview({ onSelectDb, onRefreshSidebar }: ServerO
                             onKeyDown={(e) => e.key === "Enter" && handleCreateDb()}
                             autoFocus
                         />
-                        <button className={styles.primaryBtn} onClick={handleCreateDb} style={{ padding: "0.4rem 1rem" }}>
+                        <button className={styles.primaryBtn} onClick={handleCreateDb}>
                             Create
                         </button>
                         <button className={styles.actionBtn} onClick={() => setShowCreateDb(false)}>Cancel</button>
@@ -196,24 +196,24 @@ export default function ServerOverview({ onSelectDb, onRefreshSidebar }: ServerO
             )}
 
             {error && (
-                <div className={styles.warning} style={{ borderColor: "#ef4444", color: "#ef4444", marginBottom: "1rem" }}>
-                    <AlertCircle size={16} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                <div className={styles.warning} style={{ borderColor: "#ef4444", color: "#ef4444", marginBottom: "var(--space-4)" }}>
+                    <AlertCircle size={16} className={styles.tabIcon} />
                     {error}
                 </div>
             )}
 
             {showConfirm && (
-                <div className={styles.warning} style={{ marginBottom: "1.5rem", border: "1px solid #ef4444", backgroundColor: "rgba(239, 68, 68, 0.05)" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div className={styles.warning} style={{ marginBottom: "var(--space-4)", border: "1px solid #ef4444", backgroundColor: "var(--bg-base)" }}>
+                    <div className={`${styles.flexRow} ${styles.flexGapSm}`}>
                         <AlertCircle size={20} color="#ef4444" />
                         <strong style={{ color: "#ef4444" }}>Confirm Database Drop</strong>
                     </div>
-                    <p style={{ margin: "0.5rem 0", color: "#f8fafc" }}>
+                    <p style={{ margin: "var(--space-2) 0", color: "var(--foreground)" }}>
                         Are you sure you want to <strong>DROP</strong> the entire database <code>{showConfirm}</code>?
                         This Action is irreversible.
                     </p>
-                    <div className={styles.formFooter} style={{ marginTop: "1rem", justifyContent: "flex-start" }}>
-                        <button className={styles.dangerBtn} style={{ padding: "0.4rem 1.25rem" }} onClick={() => handleDropDatabase(showConfirm, true)}>
+                    <div className={styles.formFooter} style={{ marginTop: "var(--space-4)", justifyContent: "flex-start" }}>
+                        <button className={styles.dangerBtn} onClick={() => handleDropDatabase(showConfirm, true)}>
                             Drop Database
                         </button>
                         <button className={styles.actionBtn} onClick={() => setShowConfirm(null)}>Cancel</button>
@@ -221,7 +221,7 @@ export default function ServerOverview({ onSelectDb, onRefreshSidebar }: ServerO
                 </div>
             )}
 
-            <div className={styles.tableContainer} style={{ marginBottom: "3rem" }}>
+            <div className={styles.tableContainer} style={{ marginBottom: "var(--space-6)" }}>
                 <table className={styles.table}>
                     <thead>
                         <tr>
@@ -234,11 +234,11 @@ export default function ServerOverview({ onSelectDb, onRefreshSidebar }: ServerO
                             <tr key={db}>
                                 <td
                                     onClick={() => onSelectDb(db)}
-                                    style={{ cursor: "pointer", fontWeight: 500 }}
+                                    style={{ cursor: "pointer" }}
                                     className={styles.linkText}
                                 >
-                                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                        <Database size={16} color="#38bdf8" />
+                                    <div className={`${styles.flexRow} ${styles.flexGapSm}`}>
+                                        <Database size={16} />
                                         {db}
                                     </div>
                                 </td>
@@ -260,7 +260,7 @@ export default function ServerOverview({ onSelectDb, onRefreshSidebar }: ServerO
 
             {/* Process List Section */}
             <div className={styles.count}>
-                <Activity size={18} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                <Activity size={18} className={styles.tabIcon} />
                 Active Processes ({processes.length})
             </div>
             <div className={styles.tableContainer}>

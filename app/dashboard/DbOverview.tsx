@@ -80,7 +80,7 @@ export default function DbOverview({ database, onSelectTable, onCreateTable, onR
     if (loading && stats.length === 0) {
         return (
             <div className={styles.loading}>
-                <Loader2 className="animate-spin" size={24} style={{ marginRight: 8 }} />
+                <Loader2 className={`animate-spin ${styles.tabIcon}`} size={24} />
                 Loading database overview...
             </div>
         );
@@ -89,7 +89,7 @@ export default function DbOverview({ database, onSelectTable, onCreateTable, onR
     if (error) {
         return (
             <div className={styles.error}>
-                <AlertCircle size={24} style={{ marginRight: 8 }} />
+                <AlertCircle className={styles.tabIcon} size={24} />
                 {error}
             </div>
         );
@@ -100,22 +100,22 @@ export default function DbOverview({ database, onSelectTable, onCreateTable, onR
 
     return (
         <div className={styles.wrapper}>
-            <div className={styles.count} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className={`${styles.count} ${styles.flexBetween}`}>
                 <div>
                     Database: <strong>{database}</strong> - {stats.length} tables
                 </div>
                 <button className={styles.actionBtn} onClick={onCreateTable}>
-                    <Plus size={14} style={{ marginRight: 4 }} /> Create Table
+                    <Plus size={14} className={styles.tabIcon} /> Create Table
                 </button>
             </div>
 
             {showConfirmDrop && (
-                <div className={styles.warning} style={{ marginBottom: "1.5rem", border: "1px solid #ef4444", backgroundColor: "rgba(239, 68, 68, 0.05)" }}>
-                    <p style={{ margin: "0 0 1rem 0", color: "#f8fafc" }}>
+                <div className={styles.warning} style={{ marginBottom: "var(--space-4)", border: "1px solid #ef4444", backgroundColor: "var(--bg-base)" }}>
+                    <p style={{ margin: "0 0 var(--space-4) 0", color: "var(--foreground)" }}>
                         Are you sure you want to <strong>DROP</strong> table <code>{showConfirmDrop}</code>?
                     </p>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                        <button className={styles.dangerBtn} style={{ padding: "0.4rem 1rem" }} onClick={() => handleDropTable(showConfirmDrop, true)}>
+                    <div className={`${styles.flexRow} ${styles.flexGapSm}`}>
+                        <button className={styles.dangerBtn} onClick={() => handleDropTable(showConfirmDrop, true)}>
                             Drop Table
                         </button>
                         <button className={styles.actionBtn} onClick={() => setShowConfirmDrop(null)}>Cancel</button>
@@ -138,7 +138,7 @@ export default function DbOverview({ database, onSelectTable, onCreateTable, onR
                     <tbody>
                         {stats.length === 0 ? (
                             <tr>
-                                <td colSpan={6} style={{ textAlign: "center", padding: "2rem" }}>
+                                <td colSpan={6} style={{ textAlign: "center", padding: "var(--space-6)" }}>
                                     No tables found in this database
                                 </td>
                             </tr>
@@ -146,8 +146,8 @@ export default function DbOverview({ database, onSelectTable, onCreateTable, onR
                             stats.map((table) => (
                                 <tr key={table.tableName}>
                                     <td onClick={() => onSelectTable(table.tableName)} style={{ cursor: "pointer" }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                            <TableIcon size={14} color="#38bdf8" />
+                                        <div className={`${styles.flexRow} ${styles.flexGapSm}`}>
+                                            <TableIcon size={14} />
                                             {table.tableName}
                                         </div>
                                     </td>
@@ -170,7 +170,7 @@ export default function DbOverview({ database, onSelectTable, onCreateTable, onR
                         )}
                     </tbody>
                     <tfoot>
-                        <tr style={{ fontWeight: "bold", backgroundColor: "#263349" }}>
+                        <tr style={{ fontWeight: "bold", backgroundColor: "var(--bg-header)" }}>
                             <td>Total: {stats.length} tables</td>
                             <td>{totalRows.toLocaleString()}</td>
                             <td>-</td>

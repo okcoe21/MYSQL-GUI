@@ -39,7 +39,7 @@ export default function StructureView({ database, table }: StructureViewProps) {
     if (loading) {
         return (
             <div className={styles.loading}>
-                <Loader2 className="animate-spin" size={24} style={{ marginRight: 8 }} />
+                <Loader2 className={`animate-spin ${styles.tabIcon}`} size={24} />
                 Loading table structure...
             </div>
         );
@@ -48,7 +48,7 @@ export default function StructureView({ database, table }: StructureViewProps) {
     if (error) {
         return (
             <div className={styles.error}>
-                <AlertCircle size={24} style={{ marginRight: 8 }} />
+                <AlertCircle className={styles.tabIcon} size={24} />
                 {error}
             </div>
         );
@@ -75,15 +75,15 @@ export default function StructureView({ database, table }: StructureViewProps) {
                         {structure.map((col) => (
                             <tr key={col.Field}>
                                 <td>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                        {col.Key === "PRI" && <Key size={14} color="#f59e0b" />}
+                                    <div className={`${styles.flexRow} ${styles.flexGapSm}`}>
+                                        {col.Key === "PRI" && <Key size={14} className={styles.tabIcon} />}
                                         {col.Field}
                                     </div>
                                 </td>
                                 <td>{col.Type}</td>
                                 <td>{col.Null}</td>
                                 <td>{col.Key}</td>
-                                <td>{col.Default === null ? <em style={{ color: "#64748b" }}>NULL</em> : col.Default}</td>
+                                <td>{col.Default === null ? <em style={{ color: "var(--text-muted)" }}>NULL</em> : col.Default}</td>
                                 <td>{col.Extra}</td>
                             </tr>
                         ))}

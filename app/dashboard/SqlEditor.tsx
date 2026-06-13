@@ -105,7 +105,7 @@ export default function SqlEditor({ initialDatabase, externalQuery }: SqlEditorP
                     spellCheck={false}
                 />
                 <div className={styles.controls}>
-                    <div style={{ display: "flex", gap: "8px" }}>
+                    <div className={`${styles.flexRow} ${styles.flexGapSm}`}>
                         <button className={styles.actionBtn} onClick={handleClear} title="Clear Query">
                             Clear
                         </button>
@@ -117,21 +117,20 @@ export default function SqlEditor({ initialDatabase, externalQuery }: SqlEditorP
                         className={styles.primaryBtn}
                         onClick={() => runQuery(false)}
                         disabled={loading || !query.trim()}
-                        style={{ padding: "0.4rem 1.5rem" }}
                     >
-                        <Play size={16} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                        <Play size={16} className={styles.tabIcon} />
                         Run Query
                     </button>
                 </div>
             </div>
 
             {showWarning && (
-                <div className={styles.warning} style={{ marginTop: "1rem" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div className={`${styles.warning} ${styles.marginTopSm}`}>
+                    <div className={`${styles.flexRow} ${styles.flexGapSm}`}>
                         <AlertTriangle size={20} />
                         <strong>Warning: Destructive Query Detected</strong>
                     </div>
-                    <p style={{ margin: "0.5rem 0" }}>{error}</p>
+                    <p style={{ margin: "var(--space-2) 0" }}>{error}</p>
                     <div className={styles.warningControls}>
                         <button className={styles.confirmBtn} onClick={() => runQuery(true)}>Yes, Execute</button>
                         <button className={styles.cancelBtn} onClick={() => { setShowWarning(false); setError(null); }}>Cancel</button>
@@ -140,7 +139,7 @@ export default function SqlEditor({ initialDatabase, externalQuery }: SqlEditorP
             )}
 
             {!showWarning && error && (
-                <div className={styles.warning} style={{ marginTop: "1rem", borderColor: "#ef4444", color: "#ef4444", backgroundColor: "rgba(239, 68, 68, 0.1)" }}>
+                <div className={`${styles.warning} ${styles.marginTopSm}`} style={{ borderColor: "#ef4444", color: "#ef4444", backgroundColor: "var(--bg-base)" }}>
                     {error}
                 </div>
             )}
@@ -149,7 +148,7 @@ export default function SqlEditor({ initialDatabase, externalQuery }: SqlEditorP
                 <div className={styles.resultsArea}>
                     {results.affectedRows !== undefined && results.affectedRows !== null ? (
                         <div className={styles.successMessage}>
-                            <CheckCircle size={16} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                            <CheckCircle size={16} className={styles.tabIcon} />
                             Query successful. Affected rows: {results.affectedRows}
                         </div>
                     ) : (
@@ -165,7 +164,7 @@ export default function SqlEditor({ initialDatabase, externalQuery }: SqlEditorP
                                 <tbody>
                                     {!results.data || results.data.length === 0 ? (
                                         <tr>
-                                            <td colSpan={results.columns?.length || 1} style={{ textAlign: "center", padding: "2rem" }}>
+                                            <td colSpan={results.columns?.length || 1} style={{ textAlign: "center", padding: "var(--space-6)" }}>
                                                 Query returned no results
                                             </td>
                                         </tr>

@@ -180,14 +180,13 @@ export default function Sidebar({ onSelectTable, onSelectObject, onSelectDb, onS
             </div>
 
             <div className={styles.sidebarSearch}>
-                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <div className={`${styles.flexRow} ${styles.flexGapSm}`}>
                     <input
                         type="text"
                         placeholder="Search databases..."
-                        className={styles.searchInput}
+                        className={`${styles.searchInput} ${styles.flex1}`}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        style={{ flex: 1 }}
                     />
                     <button
                         className={styles.logoutBtn}
@@ -198,7 +197,7 @@ export default function Sidebar({ onSelectTable, onSelectObject, onSelectDb, onS
                     </button>
                 </div>
                 {showCreateDb && (
-                    <div style={{ marginTop: "8px", display: "flex", gap: "4px" }}>
+                    <div className={styles.sidebarCreateDbForm}>
                         <input
                             type="text"
                             placeholder="Database name"
@@ -208,46 +207,43 @@ export default function Sidebar({ onSelectTable, onSelectObject, onSelectDb, onS
                             onKeyDown={(e) => e.key === "Enter" && handleCreateDb()}
                             autoFocus
                         />
-                        <button className={styles.logoutBtn} onClick={handleCreateDb} style={{ color: "#10b981" }}>
+                        <button className={styles.logoutBtn} onClick={handleCreateDb}>
                             <Check size={16} />
                         </button>
-                        <button className={styles.logoutBtn} onClick={() => setShowCreateDb(false)} style={{ color: "#ef4444" }}>
+                        <button className={styles.logoutBtn} onClick={() => setShowCreateDb(false)}>
                             <X size={16} />
                         </button>
                     </div>
                 )}
 
                 <button
-                    className={`${styles.tableBtn} ${!selectedDb && !selectedTable ? styles.active : ""}`}
+                    className={`${styles.tableBtn} ${styles.marginTopSm} ${!selectedDb && !selectedTable ? styles.active : ""}`}
                     onClick={onSelectUsers}
-                    style={{ marginTop: "12px", width: "100%", textAlign: "left", paddingLeft: "12px" }}
                 >
-                    <Users size={16} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                    <Users size={16} className={styles.tabIcon} />
                     User Management
                 </button>
 
                 <button
                     className={styles.tableBtn}
                     onClick={onSelectPerformance}
-                    style={{ width: "100%", textAlign: "left", paddingLeft: "12px" }}
                 >
-                    <Activity size={16} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                    <Activity size={16} className={styles.tabIcon} />
                     Performance
                 </button>
 
                 <button
                     className={styles.tableBtn}
                     onClick={onSelectSlowLog}
-                    style={{ width: "100%", textAlign: "left", paddingLeft: "12px" }}
                 >
-                    <Clock size={16} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                    <Clock size={16} className={styles.tabIcon} />
                     Slow Query Log
                 </button>
             </div>
 
             <div className={styles.sidebarContent}>
                 {loadingDb ? (
-                    <div style={{ padding: "1rem", color: "#94a3b8", fontSize: "0.875rem" }}>Loading databases...</div>
+                    <div className={styles.pageInfo}>Loading databases...</div>
                 ) : (
                     filteredDatabases.map((db) => (
                         <div key={db} className={styles.dbItem}>
@@ -255,8 +251,8 @@ export default function Sidebar({ onSelectTable, onSelectObject, onSelectDb, onS
                                 className={`${styles.dbHeader} ${selectedDb === db ? styles.active : ""}`}
                                 onClick={() => toggleDb(db)}
                             >
-                                {expandedDb === db ? <ChevronDown size={14} style={{ marginRight: 8 }} /> : <ChevronRight size={14} style={{ marginRight: 8 }} />}
-                                <Database size={16} style={{ marginRight: 8 }} />
+                                {expandedDb === db ? <ChevronDown size={14} className={styles.tabIcon} /> : <ChevronRight size={14} className={styles.tabIcon} />}
+                                <Database size={16} className={styles.tabIcon} />
                                 {db}
                             </button>
 
@@ -264,20 +260,18 @@ export default function Sidebar({ onSelectTable, onSelectObject, onSelectDb, onS
                                 <div className={styles.tableList}>
                                     {/* DB Summary Link */}
                                     <button
-                                        className={`${styles.tableBtn} ${selectedDb === db && !selectedTable && !selectedObject ? styles.active : ""}`}
+                                        className={`${styles.tableBtn} ${styles.indentOverview} ${selectedDb === db && !selectedTable && !selectedObject ? styles.active : ""}`}
                                         onClick={() => onSelectDb(db)}
-                                        style={{ fontWeight: "bold" }}
                                     >
-                                        <Activity size={12} style={{ marginRight: 8 }} /> Overview
+                                        <Activity size={12} className={styles.tabIcon} /> Overview
                                     </button>
 
                                     {/* Diagram Link */}
                                     <button
-                                        className={styles.tableBtn}
+                                        className={`${styles.tableBtn} ${styles.indentDiagram}`}
                                         onClick={(e) => { e.stopPropagation(); onSelectDiagram(db); }}
-                                        style={{ color: "var(--primary)" }}
                                     >
-                                        <Share2 size={12} style={{ marginRight: 8 }} /> ER Diagram
+                                        <Share2 size={12} className={styles.tabIcon} /> ER Diagram
                                     </button>
 
                                     {dbObjects[db] ? (
@@ -286,10 +280,10 @@ export default function Sidebar({ onSelectTable, onSelectObject, onSelectDb, onS
                                             {dbObjects[db].tables.map((table) => (
                                                 <button
                                                     key={`table-${table}`}
-                                                    className={`${styles.tableBtn} ${selectedTable === table && selectedDb === db ? styles.active : ""}`}
+                                                    className={`${styles.tableBtn} ${styles.indentTable} ${selectedTable === table && selectedDb === db ? styles.active : ""}`}
                                                     onClick={() => onSelectTable(db, table)}
                                                 >
-                                                    <Table size={14} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                                                    <Table size={14} className={styles.tabIcon} />
                                                     {table}
                                                 </button>
                                             ))}
@@ -301,10 +295,10 @@ export default function Sidebar({ onSelectTable, onSelectObject, onSelectDb, onS
                                             {dbObjects[db].views.map((view) => (
                                                 <button
                                                     key={`view-${view}`}
-                                                    className={`${styles.tableBtn} ${selectedObject?.name === view && selectedObject?.type === "view" ? styles.active : ""}`}
+                                                    className={`${styles.tableBtn} ${styles.indentView} ${selectedObject?.name === view && selectedObject?.type === "view" ? styles.active : ""}`}
                                                     onClick={() => onSelectObject(db, view, "view")}
                                                 >
-                                                    <Eye size={14} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                                                    <Eye size={14} className={styles.tabIcon} />
                                                     {view}
                                                 </button>
                                             ))}
@@ -316,10 +310,10 @@ export default function Sidebar({ onSelectTable, onSelectObject, onSelectDb, onS
                                             {dbObjects[db].procedures.map((proc) => (
                                                 <button
                                                     key={`proc-${proc}`}
-                                                    className={`${styles.tableBtn} ${selectedObject?.name === proc && selectedObject?.type === "procedure" ? styles.active : ""}`}
+                                                    className={`${styles.tableBtn} ${styles.indentProcedure} ${selectedObject?.name === proc && selectedObject?.type === "procedure" ? styles.active : ""}`}
                                                     onClick={() => onSelectObject(db, proc, "procedure")}
                                                 >
-                                                    <Terminal size={14} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                                                    <Terminal size={14} className={styles.tabIcon} />
                                                     {proc}
                                                 </button>
                                             ))}
@@ -331,16 +325,16 @@ export default function Sidebar({ onSelectTable, onSelectObject, onSelectDb, onS
                                             {dbObjects[db].functions.map((func) => (
                                                 <button
                                                     key={`func-${func}`}
-                                                    className={`${styles.tableBtn} ${selectedObject?.name === func && selectedObject?.type === "function" ? styles.active : ""}`}
+                                                    className={`${styles.tableBtn} ${styles.indentFunction} ${selectedObject?.name === func && selectedObject?.type === "function" ? styles.active : ""}`}
                                                     onClick={() => onSelectObject(db, func, "function")}
                                                 >
-                                                    <Variable size={14} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                                                    <Variable size={14} className={styles.tabIcon} />
                                                     {func}
                                                 </button>
                                             ))}
                                         </>
                                     ) : (
-                                        <div style={{ padding: "0.25rem 0.5rem", color: "#64748b", fontSize: "0.75rem" }}>Loading...</div>
+                                        <div className={styles.pageInfo}>Loading...</div>
                                     )}
                                 </div>
                             )}

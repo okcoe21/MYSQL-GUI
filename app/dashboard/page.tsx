@@ -30,6 +30,7 @@ export default function DashboardPage() {
     const [selectedTable, setSelectedTable] = useState<string | undefined>();
     const [activeView, setActiveView] = useState<ViewType>("server_overview");
     const [sidebarKey, setSidebarKey] = useState(0);
+    const [refreshKey, setRefreshKey] = useState(0);
     const [externalQuery, setExternalQuery] = useState("");
     const [selectedObject, setSelectedObject] = useState<{ name: string; type: "view" | "procedure" | "function" } | undefined>();
 
@@ -144,7 +145,7 @@ export default function DashboardPage() {
         // Table level views
         switch (activeView) {
             case "browse":
-                return <TableData database={selectedDb} table={selectedTable} />;
+                return <TableData database={selectedDb} table={selectedTable} refreshKey={refreshKey} />;
             case "structure":
                 return <StructureView database={selectedDb} table={selectedTable} />;
             case "sql":
@@ -158,9 +159,9 @@ export default function DashboardPage() {
             case "operations":
                 return <OperationsView database={selectedDb} table={selectedTable} onTableDropped={handleTableDropped} onNavigateToMockData={() => setActiveView("mock_data")} />;
             case "mock_data":
-                return <MockDataView database={selectedDb} table={selectedTable} onSuccess={() => { }} />;
+                return <MockDataView database={selectedDb} table={selectedTable} onSuccess={() => setRefreshKey(prev => prev + 1)} />;
             default:
-                return <TableData database={selectedDb} table={selectedTable} />;
+                return <TableData database={selectedDb} table={selectedTable} refreshKey={refreshKey} />;
         }
     };
 

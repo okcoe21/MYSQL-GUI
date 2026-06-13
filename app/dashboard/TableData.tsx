@@ -5,9 +5,10 @@ import { AlertCircle, Loader2, Trash2, ArrowUp, ArrowDown, ChevronLeft, ChevronR
 interface TableDataProps {
     database: string;
     table: string;
+    refreshKey?: number;
 }
 
-export default function TableData({ database, table }: TableDataProps) {
+export default function TableData({ database, table, refreshKey }: TableDataProps) {
     const [data, setData] = useState<any[]>([]);
     const [columns, setColumns] = useState<string[]>([]);
     const [structure, setStructure] = useState<any[]>([]);
@@ -66,7 +67,7 @@ export default function TableData({ database, table }: TableDataProps) {
         setOffset(0); // Reset offset when table or sort changes
         fetchData();
         fetchStructure();
-    }, [database, table, sortCol, sortOrder, fetchData, fetchStructure]);
+    }, [database, table, sortCol, sortOrder, fetchData, fetchStructure, refreshKey]);
 
     useEffect(() => {
         fetchData();
@@ -144,7 +145,7 @@ export default function TableData({ database, table }: TableDataProps) {
     if (loading && data.length === 0) {
         return (
             <div className={styles.loading}>
-                <Loader2 className="animate-spin" size={24} style={{ marginRight: 8 }} />
+                <Loader2 className={`animate-spin ${styles.tabIcon}`} size={24} />
                 Loading table data...
             </div>
         );
@@ -153,7 +154,7 @@ export default function TableData({ database, table }: TableDataProps) {
     if (error) {
         return (
             <div className={styles.error}>
-                <AlertCircle size={24} style={{ marginRight: 8 }} />
+                <AlertCircle className={styles.tabIcon} size={24} />
                 {error}
             </div>
         );
@@ -174,7 +175,7 @@ export default function TableData({ database, table }: TableDataProps) {
                 <table className={styles.table}>
                     <thead>
                         <tr>
-                            <th style={{ width: "40px" }}></th>
+                            <th></th>
                             {columns.map((col) => (
                                 <th
                                     key={col}
@@ -194,7 +195,7 @@ export default function TableData({ database, table }: TableDataProps) {
                     <tbody>
                         {data.length === 0 ? (
                             <tr>
-                                <td colSpan={columns.length + 1} style={{ textAlign: "center", padding: "2rem" }}>
+                                <td colSpan={columns.length + 1} style={{ textAlign: "center", padding: "var(--space-6)" }}>
                                     Table is empty
                                 </td>
                             </tr>
@@ -256,7 +257,7 @@ export default function TableData({ database, table }: TableDataProps) {
                                                 );
                                             })() : (
                                                 <span title={String(row[col])}>
-                                                    {row[col] === null ? <em style={{ color: "#64748b" }}>NULL</em> : (() => {
+                                                    {row[col] === null ? <em style={{ color: "var(--text-muted)" }}>NULL</em> : (() => {
                                                         const colInfo = structure.find(s => s.Field === col);
                                                         if (colInfo && (colInfo.Type.includes('datetime') || colInfo.Type.includes('timestamp')) && row[col]) {
                                                             try {

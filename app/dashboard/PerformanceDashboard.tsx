@@ -60,10 +60,10 @@ export default function PerformanceDashboard() {
         }).join(" ");
 
         return (
-            <div className={styles.form} style={{ padding: "1rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-                    <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{label}</span>
-                    <span style={{ fontSize: "0.8rem", fontWeight: "bold" }}>{data[data.length - 1].toLocaleString()}</span>
+            <div className={styles.form} style={{ padding: "var(--space-4)" }}>
+                <div className={`${styles.flexBetween} ${styles.marginBottomSm}`}>
+                    <span className={styles.metricLabel}>{label}</span>
+                    <span style={{ fontSize: "var(--font-xs)", fontWeight: "bold" }}>{data[data.length - 1].toLocaleString()}</span>
                 </div>
                 <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
                     <polyline
@@ -73,7 +73,7 @@ export default function PerformanceDashboard() {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         points={points}
-                        style={{ transition: "all 0.3s ease" }}
+                        style={{ transition: "var(--transition-fast)" }}
                     />
                     <path
                         d={`M ${points} L ${width - padding},${height - padding} L ${padding},${height - padding} Z`}
@@ -98,9 +98,9 @@ export default function PerformanceDashboard() {
 
     return (
         <div className={styles.wrapper}>
-            <div className={styles.count} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className={`${styles.count} ${styles.flexBetween}`}>
                 <div>
-                    <Activity size={18} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                    <Activity size={18} className={styles.tabIcon} />
                     Performance Insights
                 </div>
                 <button className={styles.actionBtn} onClick={() => setIsPaused(!isPaused)}>
@@ -108,14 +108,14 @@ export default function PerformanceDashboard() {
                 </button>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem", marginTop: "1rem" }}>
-                {renderLineChart(history.map(h => h.questions), "#38bdf8", "Queries History (Questions)")}
-                {renderLineChart(history.map(h => h.threads_connected), "#10b981", "Active Connections")}
-                {renderLineChart(history.map(h => h.threads_running), "#f59e0b", "Running Threads")}
-                {renderLineChart(history.map(h => h.bytes_sent / 1024), "#8b5cf6", "Traffic Out (KB)")}
+            <div className={styles.metricGrid} style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+                {renderLineChart(history.map(h => h.questions), "var(--accent)", "Queries History (Questions)")}
+                {renderLineChart(history.map(h => h.threads_connected), "var(--text-muted)", "Active Connections")}
+                {renderLineChart(history.map(h => h.threads_running), "var(--accent)", "Running Threads")}
+                {renderLineChart(history.map(h => h.bytes_sent / 1024), "var(--text-muted)", "Traffic Out (KB)")}
             </div>
 
-            <div style={{ marginTop: "2rem" }}>
+            <div className={styles.marginTopMd}>
                 <div className={styles.count}>Current Snapshot</div>
                 <div className={styles.tableContainer}>
                     <table className={styles.table}>
@@ -128,17 +128,17 @@ export default function PerformanceDashboard() {
                         </thead>
                         <tbody>
                             <tr>
-                                <td><Zap size={14} style={{ marginRight: 8 }} /> Questions</td>
+                                <td><Zap size={14} className={styles.tabIcon} /> Questions</td>
                                 <td><strong>{currentMetrics.questions.toLocaleString()}</strong></td>
                                 <td>Total number of queries sent to the server</td>
                             </tr>
                             <tr>
-                                <td><Users size={14} style={{ marginRight: 8 }} /> Connections</td>
+                                <td><Users size={14} className={styles.tabIcon} /> Connections</td>
                                 <td><strong>{currentMetrics.threads_connected}</strong></td>
                                 <td>Number of currently open connections</td>
                             </tr>
                             <tr>
-                                <td><Globe size={14} style={{ marginRight: 8 }} /> Total Traffic</td>
+                                <td><Globe size={14} className={styles.tabIcon} /> Total Traffic</td>
                                 <td><strong>{((currentMetrics.bytes_received + currentMetrics.bytes_sent) / 1024 / 1024).toFixed(2)} MB</strong></td>
                                 <td>Total data transferred (In + Out)</td>
                             </tr>
