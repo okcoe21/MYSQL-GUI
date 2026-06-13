@@ -29,6 +29,34 @@ export default function SqlEditor({ initialDatabase, externalQuery }: SqlEditorP
     const [explainText, setExplainText] = useState("");
     const [explainVisible, setExplainVisible] = useState(false);
 
+    // Natural Language to SQL states
+    const [nlAvailable, setNlAvailable] = useState(false);
+    const [nlProvider, setNlProvider] = useState<string | null>(null);
+    const [nlModel, setNlModel] = useState<string | null>(null);
+    const [nlPrompt, setNlPrompt] = useState("");
+    const [nlLoading, setNlLoading] = useState(false);
+    const [nlError, setNlError] = useState("");
+    const [flashActive, setFlashActive] = useState(false);
+
+    useEffect(() => {
+        let isMounted = true;
+        fetch("/api/nlq/status")
+            .then((res) => res.json())
+            .then((data) => {
+                if (isMounted) {
+                    setNlAvailable(data.available);
+                    setNlProvider(data.provider);
+                    setNlModel(data.model);
+                }
+            })
+            .catch((err) => {
+                console.error("Failed to fetch NLQ status:", err);
+            });
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
     // Autocomplete states
     const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -204,6 +232,45 @@ export default function SqlEditor({ initialDatabase, externalQuery }: SqlEditorP
         setExplainVisible(true);
     };
 
+    const handleGenerate = async () => {
+        if (!nlPrompt.trim() || nlLoading) return;
+        setNlLoading(true);
+        setNlError("");
+
+        try {
+            const res = await fetch("/api/nlq", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    prompt: nlPrompt,
+                    schema: schemaDataRef.current
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                setQuery(data.sql);
+                setNlPrompt("");
+                setFlashActive(true);
+
+                if (textareaRef.current) {
+                    const textarea = textareaRef.current;
+                    textarea.value = data.sql;
+                    const event = new Event("input", { bubbles: true });
+                    textarea.dispatchEvent(event);
+                    textarea.focus();
+                }
+            } else {
+                setNlError(data.error || "Failed to generate query");
+            }
+        } catch (err: any) {
+            setNlError(err.message || "Failed to generate query");
+        } finally {
+            setNlLoading(false);
+        }
+    };
+
     const renderExplanation = (text: string) => {
         if (!text.includes('⚠')) {
             return <span>{text}</span>;
@@ -223,15 +290,50 @@ export default function SqlEditor({ initialDatabase, externalQuery }: SqlEditorP
 
     return (
         <div className={styles.wrapper}>
+            {nlAvailable && (
+                <div className={styles.nlSection}>
+                    <div className={styles.nlLabelRow}>
+                        <span className={styles.nlLabel}>✦ NATURAL LANGUAGE → SQL</span>
+                        <span className={styles.nlProviderBadge}>via {nlModel}</span>
+                    </div>
+                    <div className={styles.nlInputRow}>
+                        <input
+                            type="text"
+                            className={styles.nlInput}
+                            placeholder="e.g. show all users who signed up last month"
+                            value={nlPrompt}
+                            onChange={(e) => {
+                                setNlPrompt(e.target.value);
+                                setNlError("");
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    handleGenerate();
+                                }
+                            }}
+                            disabled={nlLoading}
+                        />
+                        <button
+                            className={`${styles.btnGenerate} ${nlLoading ? styles.loading : ""}`}
+                            onClick={handleGenerate}
+                            disabled={nlLoading || !nlPrompt.trim()}
+                        >
+                            Generate →
+                        </button>
+                    </div>
+                    {nlError && <div className={styles.nlError}>{nlError}</div>}
+                </div>
+            )}
             <div className={styles.editorGroup}>
                 <div className={styles.editorWrapper}>
                     <textarea
                         ref={textareaRef}
-                        className={styles.editor}
+                        className={`${styles.editor} ${flashActive ? styles.sqlTextareaFlash : ""}`}
                         value={query}
                         onChange={handleChange}
                         onKeyDown={handleKeyDown}
                         onBlur={handleBlur}
+                        onTransitionEnd={() => setFlashActive(false)}
                         placeholder="Enter your SQL query here... (e.g. SELECT * FROM users LIMIT 10)"
                         spellCheck={false}
                     />
