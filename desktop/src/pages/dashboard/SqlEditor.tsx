@@ -178,17 +178,7 @@ export default function SqlEditor({ initialDatabase, externalQuery }: SqlEditorP
         setShowWarning(false);
 
         try {
-            const res = await fetch("/api/query", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    query,
-                    database: initialDatabase,
-                    confirmed
-                }),
-            });
-
-            const data: QueryResult = await res.json();
+            const data: QueryResult = await api.executeSqlQuery(query, initialDatabase, confirmed);
 
             if (data.success) {
                 setResults(data);

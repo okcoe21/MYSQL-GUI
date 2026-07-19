@@ -22,8 +22,7 @@ export default function PerformanceDashboard() {
 
     const fetchMetrics = async () => {
         try {
-            const res = await fetch("/api/server/metrics");
-            const data = await res.json();
+            const data = await api.getServerMetrics();
             if (data.success) {
                 setHistory(prev => {
                     const newHistory = [...prev, { ...data.metrics, timestamp: data.timestamp }];

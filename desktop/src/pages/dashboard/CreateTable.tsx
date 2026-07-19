@@ -75,12 +75,7 @@ export default function CreateTable({ database, onBack, onSuccess }: CreateTable
         setLoading(true);
         setError("");
         try {
-            const res = await fetch("/api/tables/create", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ database, table: tableName, columns }),
-            });
-            const result = await res.json();
+            const result = await api.createTable(database, tableName, columns);
             if (result.success) {
                 onSuccess(tableName);
             } else {

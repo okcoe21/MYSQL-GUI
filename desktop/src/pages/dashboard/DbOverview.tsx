@@ -49,12 +49,7 @@ export default function DbOverview({ database, onSelectTable, onCreateTable, onR
 
         setDroppingTable(table);
         try {
-            const res = await fetch("/api/tables/drop", {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ database, table, confirmed: true }),
-            });
-            const result = await res.json();
+            const result = await api.dropTable(database, table, true);
             if (result.success) {
                 fetchStats();
                 onRefreshSidebar();

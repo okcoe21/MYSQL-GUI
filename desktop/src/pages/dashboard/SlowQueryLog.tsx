@@ -16,13 +16,12 @@ export default function SlowQueryLog() {
         setError("");
         setSetupRequired(false);
         try {
-            const res = await fetch("/api/server/slow-log");
-            const data = await res.json();
+            const data = await api.getServerSlowLog();
             if (data.success) {
-                setLogs(data.logs);
+                setLogs(data.logs || []);
             } else {
                 setError(data.error);
-                if (data.setupRequired) setSetupRequired(true);
+                if (data.setupRequired || data.setup_required) setSetupRequired(true);
             }
         } catch {
             setError("Failed to fetch slow query logs");

@@ -28,9 +28,8 @@ export default function VisualQueryBuilder({ database, initialTable, onRunQuery 
 
     useEffect(() => {
         const fetchTables = async () => {
-            const res = await fetch(`/api/tables?database=${database}`);
-            const data = await res.json();
-            if (data.success) setTables(data.tables);
+            const data = await api.listTables(database);
+            if (data.success) setTables(data.tables || []);
         };
         fetchTables();
     }, [database]);
@@ -38,9 +37,8 @@ export default function VisualQueryBuilder({ database, initialTable, onRunQuery 
     useEffect(() => {
         if (selectedTable) {
             const fetchColumns = async () => {
-                const res = await fetch(`/api/structure?database=${database}&table=${selectedTable}`);
-                const data = await res.json();
-                if (data.success) {
+                const data = await api.getStructure(database, selectedTable);
+                if (data.success && data.structure) {
                     setColumns(data.structure.map((c: any) => c.Field));
                 }
             };

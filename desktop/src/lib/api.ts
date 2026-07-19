@@ -1,4 +1,21 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as tauriInvoke } from "@tauri-apps/api/core";
+
+const isTauri = typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__ !== undefined;
+
+async function invoke<T>(cmd: string, args?: Record<string, any>): Promise<T> {
+    if (!isTauri) {
+        console.warn(`Tauri is not available. Command "${cmd}" was bypassed (mocked or failed).`);
+        if (cmd === "cmd_get_llm_config" || cmd === "cmd_get_llm_config_unmasked") {
+            return { provider: "none" } as unknown as T;
+        }
+        if (cmd === "cmd_server_status") {
+            return { status: "disconnected", uptime: 0 } as unknown as T;
+        }
+        throw new Error(`Tauri is not running. Cannot invoke command: ${cmd}`);
+    }
+    return tauriInvoke<T>(cmd, args);
+}
+
 
 export async function login(host: string, port: string, user: string, password?: string) {
     try {

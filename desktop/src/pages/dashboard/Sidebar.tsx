@@ -151,7 +151,7 @@ export default function Sidebar({ onSelectTable, onSelectObject, onSelectDb, onS
 
     const handleLogout = async () => {
         await api.logout();
-        navigate("/login");
+        navigate("/");
     };
 
 

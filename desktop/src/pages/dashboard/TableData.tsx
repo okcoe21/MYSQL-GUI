@@ -107,19 +107,7 @@ export default function TableData({ database, table, refreshKey }: TableDataProp
 
         try {
             const row = data[idx];
-            const res = await fetch("/api/data/update", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    database,
-                    table,
-                    column: col,
-                    value: editValue,
-                    where: row,
-                }),
-            });
-
-            const result = await res.json();
+            const result = await api.updateRow(database, table, col, editValue, row);
             if (result.success) {
                 // Optimistically update local state or just refresh
                 const newData = [...data];

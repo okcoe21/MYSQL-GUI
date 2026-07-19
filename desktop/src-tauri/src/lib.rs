@@ -13,11 +13,14 @@ pub struct AppState {
 // Structs for payload serialization/deserialization
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct QueryResult {
     pub success: bool,
     pub data: Option<Value>,
     pub columns: Vec<String>,
     pub affected_rows: Option<u64>,
+    pub error: Option<String>,
+    pub message: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -148,64 +151,77 @@ fn row_to_json(row: &MySqlRow) -> Value {
             Value::Null
         } else {
             let type_name = col.type_info().name();
-            match type_name {
-                "TINYINT" | "SMALLINT" | "INT" | "MEDIUMINT" | "BIGINT" | "INTEGER" => {
-                    if let Ok(val) = row.try_get::<i64, _>(name) {
-                        Value::Number(serde_json::Number::from(val))
-                    } else if let Ok(val) = row.try_get::<u64, _>(name) {
-                        Value::Number(serde_json::Number::from(val))
-                    } else {
-                        Value::Null
-                    }
+            if type_name.contains("INT") || type_name == "INTEGER" {
+                if let Ok(val) = row.try_get::<i64, _>(name) {
+                    Value::Number(serde_json::Number::from(val))
+                } else if let Ok(val) = row.try_get::<u64, _>(name) {
+                    Value::Number(serde_json::Number::from(val))
+                } else if let Ok(val) = row.try_get::<i32, _>(name) {
+                    Value::Number(serde_json::Number::from(val))
+                } else if let Ok(val) = row.try_get::<u32, _>(name) {
+                    Value::Number(serde_json::Number::from(val))
+                } else if let Ok(val) = row.try_get::<i16, _>(name) {
+                    Value::Number(serde_json::Number::from(val))
+                } else if let Ok(val) = row.try_get::<u16, _>(name) {
+                    Value::Number(serde_json::Number::from(val))
+                } else if let Ok(val) = row.try_get::<i8, _>(name) {
+                    Value::Number(serde_json::Number::from(val))
+                } else if let Ok(val) = row.try_get::<u8, _>(name) {
+                    Value::Number(serde_json::Number::from(val))
+                } else {
+                    Value::Null
                 }
-                "FLOAT" | "DOUBLE" | "DECIMAL" => {
-                    if let Ok(val) = row.try_get::<f64, _>(name) {
-                        if let Some(num) = serde_json::Number::from_f64(val) {
-                            Value::Number(num)
+            } else {
+                match type_name {
+                    "FLOAT" | "DOUBLE" | "DECIMAL" => {
+                        if let Ok(val) = row.try_get::<f64, _>(name) {
+                            if let Some(num) = serde_json::Number::from_f64(val) {
+                                Value::Number(num)
+                            } else {
+                                Value::Null
+                            }
                         } else {
                             Value::Null
                         }
-                    } else {
-                        Value::Null
                     }
-                }
-                "VARCHAR" | "CHAR" | "TEXT" | "LONGTEXT" | "MEDIUMTEXT" | "TINYTEXT" | "ENUM" | "SET" => {
-                    if let Ok(val) = row.try_get::<String, _>(name) {
-                        Value::String(val)
-                    } else {
-                        Value::Null
-                    }
-                }
-                "DATE" | "DATETIME" | "TIMESTAMP" | "TIME" => {
-                    if let Ok(val) = row.try_get::<chrono::NaiveDateTime, _>(name) {
-                        Value::String(val.format("%Y-%m-%d %H:%M:%S").to_string())
-                    } else if let Ok(val) = row.try_get::<chrono::NaiveDate, _>(name) {
-                        Value::String(val.to_string())
-                    } else if let Ok(val) = row.try_get::<String, _>(name) {
-                        Value::String(val)
-                    } else {
-                        Value::Null
-                    }
-                }
-                _ => {
-                    if let Ok(val) = row.try_get::<String, _>(name) {
-                        Value::String(val)
-                    } else if let Ok(val) = row.try_get::<i64, _>(name) {
-                        Value::Number(serde_json::Number::from(val))
-                    } else if let Ok(val) = row.try_get::<f64, _>(name) {
-                        if let Some(num) = serde_json::Number::from_f64(val) {
-                            Value::Number(num)
+                    "VARCHAR" | "CHAR" | "TEXT" | "LONGTEXT" | "MEDIUMTEXT" | "TINYTEXT" | "ENUM" | "SET" => {
+                        if let Ok(val) = row.try_get::<String, _>(name) {
+                            Value::String(val)
                         } else {
                             Value::Null
                         }
-                    } else if let Ok(val) = row.try_get::<Vec<u8>, _>(name) {
-                        if let Ok(s) = String::from_utf8(val) {
-                            Value::String(s)
+                    }
+                    "DATE" | "DATETIME" | "TIMESTAMP" | "TIME" => {
+                        if let Ok(val) = row.try_get::<chrono::NaiveDateTime, _>(name) {
+                            Value::String(val.format("%Y-%m-%d %H:%M:%S").to_string())
+                        } else if let Ok(val) = row.try_get::<chrono::NaiveDate, _>(name) {
+                            Value::String(val.to_string())
+                        } else if let Ok(val) = row.try_get::<String, _>(name) {
+                            Value::String(val)
                         } else {
-                            Value::String("[Binary data]".to_string())
+                            Value::Null
                         }
-                    } else {
-                        Value::Null
+                    }
+                    _ => {
+                        if let Ok(val) = row.try_get::<String, _>(name) {
+                            Value::String(val)
+                        } else if let Ok(val) = row.try_get::<i64, _>(name) {
+                            Value::Number(serde_json::Number::from(val))
+                        } else if let Ok(val) = row.try_get::<f64, _>(name) {
+                            if let Some(num) = serde_json::Number::from_f64(val) {
+                                Value::Number(num)
+                            } else {
+                                Value::Null
+                            }
+                        } else if let Ok(val) = row.try_get::<Vec<u8>, _>(name) {
+                            if let Ok(s) = String::from_utf8(val) {
+                                Value::String(s)
+                            } else {
+                                Value::String("[Binary data]".to_string())
+                            }
+                        } else {
+                            Value::Null
+                        }
                     }
                 }
             }
@@ -1099,12 +1115,11 @@ async fn cmd_execute_query(
     if is_destructive(&sql) && !confirmed {
         return Ok(QueryResult {
             success: false,
-            data: Some(serde_json::json!({
-                "error": "DESTRUCTIVE_QUERY",
-                "message": "This query contains potentially destructive operations (DROP, DELETE, TRUNCATE, ALTER). Are you sure you want to proceed?"
-            })),
+            data: None,
             columns: Vec::new(),
             affected_rows: None,
+            error: Some("DESTRUCTIVE_QUERY".into()),
+            message: Some("This query contains potentially destructive operations (DROP, DELETE, TRUNCATE, ALTER). Are you sure you want to proceed?".into()),
         });
     }
     
@@ -1128,6 +1143,8 @@ async fn cmd_execute_query(
             data: Some(Value::Array(list)),
             columns,
             affected_rows: None,
+            error: None,
+            message: None,
         })
     } else {
         let result = conn.execute(sql.as_str()).await.map_err(|e| e.to_string())?;
@@ -1136,6 +1153,8 @@ async fn cmd_execute_query(
             data: None,
             columns: Vec::new(),
             affected_rows: Some(result.rows_affected()),
+            error: None,
+            message: None,
         })
     }
 }

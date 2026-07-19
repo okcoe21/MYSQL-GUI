@@ -85,13 +85,7 @@ export default function ServerOverview({ onSelectDb, onRefreshSidebar }: ServerO
         setDroppingDb(db);
         setError("");
         try {
-            const res = await fetch("/api/databases/drop", {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ database: db, confirmed: true }),
-            });
-
-            const result = await res.json();
+            const result = await api.dropDatabase(db, true);
             if (result.success) {
                 fetchServerData();
                 onRefreshSidebar();

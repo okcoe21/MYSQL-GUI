@@ -28,6 +28,18 @@
   --transition-fast: 150ms linear;
 }
 
+[data-theme="light"] {
+  --bg-base: #f8fafc;
+  --bg-panel: #ffffff;
+  --bg-input: #ffffff;
+  --bg-header: #f1f5f9;
+  --foreground: #0f172a;
+  --text-muted: #64748b;
+  --accent: #0d9488;
+  --border: #e2e8f0;
+}
+
+
 * {
   box-sizing: border-box;
   padding: 0;
