@@ -1,100 +1,154 @@
-# 🗄️ MySQL GUI Administration Tool
-[![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+# MySQL GUI
 
-A high-performance, modern, and secure MySQL administration interface designed for local development and professional database management. This tool bridges the gap between complex enterprise suites and simple command-line tools with a **terminal-core dark UI (Retro-Computing & Industrial design manual aesthetic)** and **real-time observability**.
+A beginner-focused, open-source MySQL client that runs in the browser.
+No installation. No Electron. No bloat — just connect and go.
 
----
-
-## Key Features
-
-### Server & Schema Management
-- **Real-time Monitoring**: Live dashboard showing Queries/sec, Active Connections, and Network Traffic via SVG-based time-series charts.
-- **Advanced Object Support**: Full management suite for **Tables, Views, Stored Procedures, and Functions** with automatic schema-mismatch fallback layers.
-- **User Permissions**: Audit and manage MySQL users, hosts, and account lock statuses centrally.
-- **Slow Query Forensic**: Identify execution bottlenecks by analyzing the server's slow query log directly.
-
-### Developer Productivity
-- **Visual ER Diagrams**: Auto-generated interactive relationship maps to visualize your database architecture.
-- **Intelligent Query Builder**: Visual "No-Code" interface for generating optimized `SELECT` queries.
-- **Local History & Favorites**: Persisted query snippets and execution history for rapid workflow.
-- **Smart Seeding**: Built-in **Mock Data Generator** for names, emails, dates, and random text with bulk insertion support and table synchronization.
-
-### Data Manipulation & Portability
-- **Direct Cell Editing**: Double-click any cell in the data grid to update the record instantly with server-side validation.
-- **High-Performance Grid**: Server-side pagination, sorting, and filtering optimized for tables with millions of rows.
-- **Multi-Format Portability**: Export your entire database or individual tables to **SQL, JSON, or CSV**.
-- **Robust Importer**: Execute large SQL scripts with detailed statement-by-statement progress and error tracking (with rollback awareness).
+![License](https://img.shields.io/github/license/okcoe21/MYSQL-GUI)
+![Version](https://img.shields.io/badge/version-1.0.0-7C3AED)
+![Next.js](https://img.shields.io/badge/Next.js-16-black)
+![Stars](https://img.shields.io/github/stars/okcoe21/MYSQL-GUI)
 
 ---
 
-## Security Architecture
+## What it does
 
-The application is engineered with a **Security-First** mindset:
-
-- **Local-Only Boundary**: Credentials and sensitive database data never leave your local environment; there is no secondary cloud storage.
-- **Encrypted Session Layer**: Uses JWT (JSON Web Tokens) with a server-side `SESSION_SECRET` to encrypt MySQL connection details.
-- **Advanced Injection Mitigation**: Uses a strict sanitization layer for all identifiers and utilizes parameterization for values.
-- **Safety Confirmations**: Real-time analysis of SQL payloads detects destructive commands (`DROP`, `DELETE`, `TRUNCATE`) and requires user confirmation.
+MySQL GUI lets you connect to any MySQL server and manage it through a clean, fast web interface — no desktop app required. Built for learners and developers who want something lighter than TablePlus or DBeaver, and more powerful than phpMyAdmin.
 
 ---
 
-## Technical Stack
+## Features
 
-- **Framework**: [Next.js 15](https://nextjs.org/) (App Router, Node.js Runtime)
-- **UI Engine**: React 19 + Lucide Icons
-- **Typography & Styling**: Terminal-Core Design System (JetBrains Mono monospace, 2px borders max, zero decoration, Vanilla CSS Modules)
-- **Database Engine**: `mysql2` with optimized Connection Pooling
-- **Authentication**: `jose` for encrypted session management
+**Database & Table Management**
+- Browse, create, and drop databases and tables
+- Inline row insert, edit, and delete with paginated table view
+- Full schema browser — columns, types, keys, indexes
+
+**SQL Editor**
+- Write and run any SQL with syntax highlighting
+- Keyword autocomplete with live table/column hints
+- Rule-based query explainer — understand any query in plain English, no AI needed
+- Query history panel with one-click re-run
+- Destructive operation guard (DROP, DELETE prompt for confirmation)
+
+**AI — Natural Language → SQL**
+- Type "show me all users who signed up last month" → get runnable SQL
+- Supports Anthropic, OpenAI, Gemini, and local Ollama
+- Bring your own key — zero vendor lock-in
+
+**Schema Tools**
+- Foreign key relationship diagram
+- Views, procedures, and function listing
+- Export as SQL dump, JSON, or CSV
+- Import `.sql` script files
+- Mock data generator — fill tables instantly for testing
+
+**Server Monitoring**
+- Live process list
+- Server metrics dashboard (traffic, buffer pools, uptime)
+- Slow query log viewer
+- User and host account listing
 
 ---
 
-## Tauri Desktop App
-
-This project also includes a standalone **Tauri v2 Desktop Application** inside the `desktop/` folder.
-
-### Key Desktop Features
-- **Standalone Runtime**: Runs directly on your operating system without requiring a web browser or local Node.js server.
-- **Secure Keyring**: Uses the OS keychain (`keyring` crate in Rust) to securely store LLM configurations and API credentials.
-- **Vite Frontend**: Framework-agnostic client built using Vite, React, and TypeScript.
-- **GitHub Actions CI/CD**: Automatic cross-platform builds producing `.AppImage`, `.deb`, `.pacman` (Linux), `.dmg` (macOS), and `.msi`/`.exe` (Windows) on version tag pushes.
-
-For setup, dependency requirements, and instructions on how to compile locally, see [BUILDING.md](BUILDING.md).
-
----
-
-## Installation & Setup
+## Getting Started
 
 ### Prerequisites
-- **Node.js**: v18.0.0 or higher
-- **MySQL**: A running instance (local or remote)
 
-### Quick Start
-1. **Clone & Install**:
-   ```bash
-   git clone https://github.com/okcoe21/MYSQL-GUI.git
-   cd MYSQL-GUI
-   npm install
-   ```
+- Node.js 18+
+- A running MySQL server (local or remote)
 
-2. **Environment Configuration**:
-   Create a `.env.local` file. Generate a secure secret with:
-   ```bash
-   # Linux/macOS
-   echo "SESSION_SECRET=$(openssl rand -hex 32)" > .env.local
-   ```
+### Run locally
 
-3. **Launch**:
-   ```bash
-   npm run dev
-   ```
-   Open [http://localhost:3000](http://localhost:3000)
+```bash
+git clone https://github.com/okcoe21/MYSQL-GUI.git
+cd MYSQL-GUI
+npm install
+cp .env.example .env.local
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000), enter your MySQL credentials, and connect.
+
+### Environment variables
+
+```env
+# Required
+SESSION_SECRET=your-secret-key-change-this
+
+# Optional — enable AI natural language → SQL
+# Only one is needed. Priority: Anthropic > OpenAI > Gemini > Ollama
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
+GEMINI_API_KEY=
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=llama3
+```
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript |
+| Database driver | mysql2/promise |
+| Auth | JWT via jose |
+| AI | Anthropic / OpenAI / Gemini / Ollama (fetch, no SDK) |
+| Styling | CSS Modules, neobrutalist design system |
+| Icons | lucide-react |
+
+---
+
+## Project Structure
+
+```
+app/
+├── api/          # 26 API route handlers
+├── dashboard/    # All UI modules (SQL editor, diagrams, monitoring, etc.)
+└── login/        # Credentials form
+
+lib/
+├── db.ts             # mysql2 connection pool management
+├── llm.ts            # Multi-provider LLM abstraction
+├── sanitize.ts       # SQL injection safeguards
+├── session.ts        # JWT cookie utilities
+├── sqlAutocomplete.ts # Client-side autocomplete engine
+└── sqlExplainer.ts   # Rule-based query explainer
+```
+
+---
+
+## Roadmap
+
+| Version | What's coming |
+|---|---|
+| **v2.0.0** | Desktop app — Linux, macOS, Windows (Tauri + Rust) |
+| **v2.1.0** | Multi-query tabs, saved queries library, improved history |
+| **v2.2.0** | EXPLAIN plan viewer, live monitor, schema diff tool |
+
+See [CHANGELOG.md](./CHANGELOG.md) for full history.
 
 ---
 
 ## Contributing
-Contributions are what make the open-source community an amazing place! If you have a suggestion that would make this better, please fork the repo and create a pull request.
+
+PRs are welcome. Branch off `dev`, not `main`.
+
+```
+main      ← stable releases only
+dev       ← active development
+feature/* ← branch off dev for new features
+```
+
+Open an issue before starting large features so we can align on approach.
 
 ---
-*Developed with ❤️ by okcoe21*
+
+## License
+
+MIT — use it, fork it, build on it.
+
+---
+
+<p align="center">Built by <a href="https://github.com/okcoe21">okcoe21</a></p>
