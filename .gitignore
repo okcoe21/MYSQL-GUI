@@ -43,3 +43,5 @@ desktop/src-tauri/icons/
 /desktop/src-tauri/target/
 /desktop/src-tauri/gen/
 .planning/
+**/target/
+**/gen/schemas/
