@@ -50,6 +50,20 @@ The application is engineered with a **Security-First** mindset:
 
 ---
 
+## Tauri Desktop App
+
+This project also includes a standalone **Tauri v2 Desktop Application** inside the `desktop/` folder.
+
+### Key Desktop Features
+- **Standalone Runtime**: Runs directly on your operating system without requiring a web browser or local Node.js server.
+- **Secure Keyring**: Uses the OS keychain (`keyring` crate in Rust) to securely store LLM configurations and API credentials.
+- **Vite Frontend**: Framework-agnostic client built using Vite, React, and TypeScript.
+- **GitHub Actions CI/CD**: Automatic cross-platform builds producing `.AppImage`, `.deb`, `.pacman` (Linux), `.dmg` (macOS), and `.msi`/`.exe` (Windows) on version tag pushes.
+
+For setup, dependency requirements, and instructions on how to compile locally, see [BUILDING.md](BUILDING.md).
+
+---
+
 ## Installation & Setup
 
 ### Prerequisites
