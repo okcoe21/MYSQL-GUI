@@ -1,0 +1,178 @@
+.container {
+  min-height: 100vh;
+  background-color: #0c0a0f;
+  color: #f3f4f6;
+  padding: 3rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: 'Outfit', 'Inter', sans-serif;
+}
+
+.card {
+  background-color: #120e16;
+  border: 3px solid #7c3aed;
+  box-shadow: 6px 6px 0px 0px #7c3aed;
+  width: 100%;
+  max-width: 600px;
+  padding: 2.5rem;
+  margin-top: 1.5rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 600px;
+  margin-bottom: 1.5rem;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #7c3aed;
+  text-transform: uppercase;
+  letter-spacing: -0.05em;
+  margin: 0;
+}
+
+.backBtn {
+  background-color: #120e16;
+  color: #f3f4f6;
+  border: 2px solid #7c3aed;
+  padding: 0.5rem 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 3px 3px 0px 0px #7c3aed;
+  transition: all 0.1s ease;
+}
+
+.backBtn:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0px 0px #7c3aed;
+}
+
+.backBtn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px 0px #7c3aed;
+}
+
+.formGroup {
+  margin-bottom: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.label {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  color: #a78bfa;
+}
+
+.select, .input {
+  width: 100%;
+  background-color: #1a1521;
+  border: 2px solid #7c3aed;
+  padding: 0.75rem 1rem;
+  color: #f3f4f6;
+  font-family: inherit;
+  font-size: 1rem;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.select:focus, .input:focus {
+  border-color: #a78bfa;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.btnPrimary {
+  flex: 1;
+  background-color: #7c3aed;
+  color: #ffffff;
+  border: 2px solid #000000;
+  padding: 0.75rem 1.5rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  box-shadow: 4px 4px 0px 0px #000000;
+  transition: all 0.1s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btnPrimary:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px 0px #000000;
+}
+
+.btnPrimary:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px 0px #000000;
+}
+
+.btnSecondary {
+  background-color: #1a1521;
+  color: #f3f4f6;
+  border: 2px solid #7c3aed;
+  padding: 0.75rem 1.5rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  box-shadow: 4px 4px 0px 0px #7c3aed;
+  transition: all 0.1s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btnSecondary:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px 0px #7c3aed;
+}
+
+.btnSecondary:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px 0px #7c3aed;
+}
+
+.message {
+  margin-top: 1.5rem;
+  border: 2px solid #f59e0b;
+  padding: 1rem;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background-color: rgba(245, 158, 11, 0.05);
+}
+
+.successMessage {
+  border-color: #10b981;
+  background-color: rgba(16, 185, 129, 0.05);
+  color: #10b981;
+}
+
+.errorMessage {
+  border-color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.05);
+  color: #ef4444;
+}

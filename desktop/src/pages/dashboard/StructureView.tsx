@@ -1,0 +1,95 @@
+
+
+import { useState, useEffect } from "react";
+import styles from "./dashboard.module.css";
+import { AlertCircle, Loader2, Key } from "lucide-react";
+import * as api from "../../lib/api";
+
+interface StructureViewProps {
+    database: string;
+    table: string;
+}
+
+export default function StructureView({ database, table }: StructureViewProps) {
+    const [structure, setStructure] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+
+    useEffect(() => {
+        fetchStructure();
+    }, [database, table]);
+
+    const fetchStructure = async () => {
+        setLoading(true);
+        setError("");
+        try {
+            const result = await api.getStructure(database, table);
+            if (result.success) {
+                setStructure(result.structure);
+            } else {
+                setError(result.error);
+            }
+        } catch {
+            setError("Failed to fetch table structure");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className={styles.loading}>
+                <Loader2 className={`animate-spin ${styles.tabIcon}`} size={24} />
+                Loading table structure...
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className={styles.error}>
+                <AlertCircle className={styles.tabIcon} size={24} />
+                {error}
+            </div>
+        );
+    }
+
+    return (
+        <div className={styles.wrapper}>
+            <div className={styles.count}>
+                Table: <strong>{table}</strong> - {structure.length} columns
+            </div>
+            <div className={styles.tableContainer}>
+                <table className={styles.table}>
+                    <thead>
+                        <tr>
+                            <th>Column</th>
+                            <th>Type</th>
+                            <th>Null</th>
+                            <th>Key</th>
+                            <th>Default</th>
+                            <th>Extra</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {structure.map((col) => (
+                            <tr key={col.Field}>
+                                <td>
+                                    <div className={`${styles.flexRow} ${styles.flexGapSm}`}>
+                                        {col.Key === "PRI" && <Key size={14} className={styles.tabIcon} />}
+                                        {col.Field}
+                                    </div>
+                                </td>
+                                <td>{col.Type}</td>
+                                <td>{col.Null}</td>
+                                <td>{col.Key}</td>
+                                <td>{col.Default === null ? <em style={{ color: "var(--text-muted)" }}>NULL</em> : col.Default}</td>
+                                <td>{col.Extra}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
