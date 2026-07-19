@@ -37,7 +37,6 @@ Thumbs.db
 # Extras
 .agents
 desktop/.vscode/
-desktop/src-tauri/icons/
 /desktop/node_modules/
 /desktop/dist/
 /desktop/src-tauri/target/
