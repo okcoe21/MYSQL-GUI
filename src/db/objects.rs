@@ -21,7 +21,11 @@ pub async fn get_objects(state: &AppState, db: &str) -> Result<ObjectsSummary, S
     let mut procedures: Vec<String> = proc_rows.iter().map(|row| row.try_get(0).unwrap_or_default()).collect();
     
     if procedures.is_empty() {
-        if let Ok(fallback_rows) = sqlx::query(&format!("SHOW PROCEDURE STATUS WHERE Db = '{}'", db)).fetch_all(&mut *conn).await {
+        if let Ok(fallback_rows) = sqlx::query("SHOW PROCEDURE STATUS WHERE Db = ?")
+            .bind(db)
+            .fetch_all(&mut *conn)
+            .await 
+        {
             procedures = fallback_rows.iter().map(|row| row.try_get("Name").unwrap_or_default()).collect();
         }
     }
@@ -34,7 +38,11 @@ pub async fn get_objects(state: &AppState, db: &str) -> Result<ObjectsSummary, S
     let mut functions: Vec<String> = func_rows.iter().map(|row| row.try_get(0).unwrap_or_default()).collect();
     
     if functions.is_empty() {
-        if let Ok(fallback_rows) = sqlx::query(&format!("SHOW FUNCTION STATUS WHERE Db = '{}'", db)).fetch_all(&mut *conn).await {
+        if let Ok(fallback_rows) = sqlx::query("SHOW FUNCTION STATUS WHERE Db = ?")
+            .bind(db)
+            .fetch_all(&mut *conn)
+            .await 
+        {
             functions = fallback_rows.iter().map(|row| row.try_get("Name").unwrap_or_default()).collect();
         }
     }

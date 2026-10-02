@@ -3,7 +3,7 @@ use serde_json::Value;
 use rand::seq::SliceRandom;
 use rand::Rng;
 use crate::state::AppState;
-use crate::db::sanitize::sanitize_identifier;
+use crate::db::sanitize::{sanitize_identifier, escape_sql_string};
 use crate::db::models::row_to_json;
 use crate::db::query::split_sql_statements;
 
@@ -153,9 +153,15 @@ pub async fn export_database(
                                 row_vals.push(n.to_string());
                             } else if let Some(f) = val.as_f64() {
                                 row_vals.push(f.to_string());
+                            } else if let Some(b) = val.as_bool() {
+                                row_vals.push(if b { "1".to_string() } else { "0".to_string() });
                             } else {
-                                let s = val.as_str().unwrap_or_default().replace('\'', "''");
-                                row_vals.push(format!("'{}'", s));
+                                let s = if let Some(st) = val.as_str() {
+                                    st.to_string()
+                                } else {
+                                    val.to_string()
+                                };
+                                row_vals.push(format!("'{}'", escape_sql_string(&s)));
                             }
                         }
                         values_str.push(format!("({})", row_vals.join(", ")));

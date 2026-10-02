@@ -1,6 +1,6 @@
 use sqlx::{Row, Executor};
 use crate::state::AppState;
-use crate::db::sanitize::sanitize_identifier;
+use crate::db::sanitize::{sanitize_identifier, validate_column_length};
 use crate::db::models::{ColumnDefInput, TableColumnInfo};
 
 pub async fn list_tables(state: &AppState, db: &str) -> Result<Vec<String>, String> {
@@ -42,7 +42,12 @@ pub async fn create_table(
         if !valid_types.contains(&t_upper.as_str()) {
             return Err(format!("Invalid data type: [{}]", col.r#type));
         }
-        let length = col.length.as_deref().filter(|l| !l.is_empty()).map(|l| format!("({})", l)).unwrap_or_default();
+        let length = if let Some(l) = col.length.as_deref().filter(|l| !l.trim().is_empty()) {
+            let validated = validate_column_length(l)?;
+            format!("({})", validated)
+        } else {
+            String::new()
+        };
         let is_null = if col.is_null.unwrap_or(true) { "NULL" } else { "NOT NULL" };
         let auto_inc = if col.is_auto_increment.unwrap_or(false) { "AUTO_INCREMENT" } else { "" };
         

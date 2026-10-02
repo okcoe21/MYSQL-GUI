@@ -12,6 +12,7 @@ use crate::state::SharedState;
 use crate::db::{
     auth, database, table, data, query, server, objects, maintenance,
     history::HistoryManager,
+    sanitize::{sanitize_identifier, validate_column_length},
 };
 
 fn format_size(bytes: i64) -> String {
@@ -634,9 +635,11 @@ impl AppController {
                 tokio::spawn(async move {
                     let desc = table::get_structure(&ctrl.state, &db, &tbl_str).await.unwrap_or_default();
                     let cols: Vec<SharedString> = desc.into_iter().map(|c| c.field.into()).collect();
+                    let sanitized_tbl = sanitize_identifier(&tbl_str)
+                        .unwrap_or_else(|_| format!("`{}`", tbl_str.replace('`', "``")));
                     let _ = weak.upgrade_in_event_loop(move |app| {
                         app.set_builder_columns(ModelRc::from(Rc::new(VecModel::from(cols))));
-                        app.set_builder_generated_sql(format!("SELECT * FROM `{}` LIMIT 100;", tbl_str).into());
+                        app.set_builder_generated_sql(format!("SELECT * FROM {} LIMIT 100;", sanitized_tbl).into());
                     });
                 });
             });
@@ -997,25 +1000,69 @@ impl AppController {
                         return;
                     }
 
+                    let sanitized_db = match sanitize_identifier(&db) {
+                        Ok(s) => s,
+                        Err(e) => {
+                            let _ = weak.upgrade_in_event_loop(move |app| {
+                                app.set_create_table_error_message(e.into());
+                            });
+                            return;
+                        }
+                    };
+
+                    let sanitized_tbl = match sanitize_identifier(&tbl_name) {
+                        Ok(s) => s,
+                        Err(e) => {
+                            let _ = weak.upgrade_in_event_loop(move |app| {
+                                app.set_create_table_error_message(e.into());
+                            });
+                            return;
+                        }
+                    };
+
                     let mut col_defs_sql = Vec::new();
                     let mut pk_cols = Vec::new();
 
                     for c in cols_def {
                         let cname = c.name.to_string();
-                        if cname.is_empty() { continue; }
+                        if cname.trim().is_empty() { continue; }
+                        let sanitized_cname = match sanitize_identifier(&cname) {
+                            Ok(s) => s,
+                            Err(e) => {
+                                let _ = weak.upgrade_in_event_loop(move |app| {
+                                    app.set_create_table_error_message(e.into());
+                                });
+                                return;
+                            }
+                        };
                         let ctype = c.col_type.to_string();
                         let clen = c.length.to_string();
-                        let type_str = if !clen.is_empty() {
-                            format!("{}({})", ctype, clen)
+                        let type_str = if !clen.trim().is_empty() {
+                            match validate_column_length(&clen) {
+                                Ok(val) => format!("{}({})", ctype, val),
+                                Err(e) => {
+                                    let _ = weak.upgrade_in_event_loop(move |app| {
+                                        app.set_create_table_error_message(e.into());
+                                    });
+                                    return;
+                                }
+                            }
                         } else {
                             ctype
                         };
                         let null_str = if c.is_null { "NULL" } else { "NOT NULL" };
                         let auto_str = if c.is_auto_increment { "AUTO_INCREMENT" } else { "" };
-                        col_defs_sql.push(format!("`{}` {} {} {}", cname, type_str, null_str, auto_str).trim().to_string());
+                        col_defs_sql.push(format!("{} {} {} {}", sanitized_cname, type_str, null_str, auto_str).trim().to_string());
                         if c.is_primary {
-                            pk_cols.push(format!("`{}`", cname));
+                            pk_cols.push(sanitized_cname);
                         }
+                    }
+
+                    if col_defs_sql.is_empty() {
+                        let _ = weak.upgrade_in_event_loop(move |app| {
+                            app.set_create_table_error_message("At least one valid column definition is required.".into());
+                        });
+                        return;
                     }
 
                     if !pk_cols.is_empty() {
@@ -1023,8 +1070,8 @@ impl AppController {
                     }
 
                     let create_sql = format!(
-                        "CREATE TABLE `{}`.`{}` (\n  {}\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-                        db, tbl_name, col_defs_sql.join(",\n  ")
+                        "CREATE TABLE {}.{} (\n  {}\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+                        sanitized_db, sanitized_tbl, col_defs_sql.join(",\n  ")
                     );
 
                     let res = query::execute_query(&ctrl.state, Some(&db), &create_sql, false).await;
