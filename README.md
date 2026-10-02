@@ -1,4 +1,4 @@
-# MySQL GUI (v3.0)
+# MySQL GUI (v3.0.3)
 
 A high-performance, native MySQL desktop client built with **Rust** and **Slint UI**.  
 Zero Electron. Zero Node.js. Zero web runtime overhead. Just pure native speed and direct SQL execution.
@@ -7,6 +7,7 @@ Zero Electron. Zero Node.js. Zero web runtime overhead. Just pure native speed a
 ![Rust](https://img.shields.io/badge/Rust-2021-orange)
 ![UI](https://img.shields.io/badge/UI-Slint%201.18-green)
 ![Database](https://img.shields.io/badge/Database-MySQL%20%2F%20MariaDB-4479A1)
+![Tests](https://img.shields.io/badge/Tests-16%20Passing-brightgreen)
 
 ---
 
@@ -15,7 +16,7 @@ Zero Electron. Zero Node.js. Zero web runtime overhead. Just pure native speed a
 * **Instant Startup & Minimal Footprint:** Compiles directly into a single native binary. No Chromium, No WebViews, sub-50ms cold startup.
 * **Fully Native Declarative UI:** Built with [Slint](https://slint.dev), utilizing hardware-accelerated rendering and responsive layouts.
 * **Async MySQL Driver:** Directly driven by [`sqlx`](https://github.com/launchbadge/sqlx) and `tokio` for pooled, concurrent database operations.
-* **Secure Credential Storage:** Zero plaintext passwords on disk; utilizes OS Keyring via `keyring-rs`.
+* **Defensive Security & Input Validation:** Built-in SQL injection defenses, DDL validation, identifier boundaries, and automated credential redaction.
 
 ---
 
@@ -27,10 +28,12 @@ Zero Electron. Zero Node.js. Zero web runtime overhead. Just pure native speed a
 - **Table Structure Inspector:** Deep inspection of column names, data types, nullability, keys (PRI, UNI, MUL), and extra attributes.
 - **Create Table Designer:** Visual column definition builder with type selection, constraints, and instant DDL generation.
 
-### SQL Query Console
+### SQL Query Console & Security
 - **Custom SQL Execution:** Execute custom queries, DDL, batch updates, and transactions.
+- **Execution Timeout Guard:** Background 60-second execution timeouts to prevent hung threads on long-running queries.
+- **Destructive Operation Prompts:** UX confirmation guard identifying `DROP`, `TRUNCATE`, `DELETE`, `ALTER`, and unbounded `UPDATE` operations before execution.
 - **Query Results Table:** Paginated column and row visualization with execution duration telemetry.
-- **Query History:** Log of executed queries with one-click re-run, favorites, and timestamping.
+- **Sanitized Query History:** Local query history with automatic credential redaction (`IDENTIFIED BY`, `PASSWORD(...)`), one-click re-run, favorites, and timestamping.
 - **Presets Toolbar:** Fast shortcuts for `SELECT *`, count checks, and query formatting.
 
 ### Developer Tools & Monitoring
@@ -38,8 +41,21 @@ Zero Electron. Zero Node.js. Zero web runtime overhead. Just pure native speed a
 - **Server Health & Monitoring:** Live connection stats, thread count, queries executed, slow query counter, and live process list.
 - **Slow Query Log Viewer:** Read and inspect slow query performance logs.
 - **Mock Data Generator:** Generate synthetic rows based on table column schemas for testing.
-- **Export & Import:** Export data as SQL dump or JSON/CSV, import external `.sql` scripts.
+- **Export & Import:** Export data as SQL dump or JSON/CSV with safe character escaping (`\\`, `''`, control chars), import external `.sql` scripts.
 - **User & Privileges:** Inspect MySQL users, hosts, and account permissions.
+
+---
+
+## Security Architecture
+
+| Security Domain | Mitigation / Implementation |
+|---|---|
+| **Identifier Quoting** | Strict alphanumeric/`_`/`$` whitelist, 64-char MySQL length boundary, backtick escaping. |
+| **DDL Validation** | Numeric, precision pair (`10,2`), and quoted ENUM/SET value validation on column lengths. |
+| **Credential Safety** | URL parsing avoided; sensitive credentials redacted from UI error dialogs and history logs. |
+| **SQL Export Escaping** | Byte-safe string escaping (`\\`, `''`, `\0`, `\n`, `\r`, `\x1a`) preventing dump restore breakouts. |
+| **Query Safeguards** | 60-second `tokio::time::timeout` and strict prevention of empty-`WHERE` updates/deletions. |
+| **Transport Introspection**| SSL/TLS session detection (`is_encrypted`) via MySQL session status inspection. |
 
 ---
 
@@ -98,6 +114,11 @@ Zero Electron. Zero Node.js. Zero web runtime overhead. Just pure native speed a
 ### Running in Development
 ```bash
 cargo run
+```
+
+### Running Unit & Security Tests
+```bash
+cargo test
 ```
 
 ### Building for Release
