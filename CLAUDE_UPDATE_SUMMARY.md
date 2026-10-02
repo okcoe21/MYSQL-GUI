@@ -1,9 +1,9 @@
-# MySQL GUI — Project Migration & Status Report (v3.0.3)
+# MySQL GUI — Project Migration & Status Report (v3.0.4)
 
 **Date:** October 3, 2026  
 **Target:** Claude Context / Development Handoff  
 **Project:** `mysql-gui` (`/home/coes/Projects/MYSQL GUI`)  
-**Status:** Successfully Migrated, Security Hardened & Tested (16/16 Unit Tests Passing)  
+**Status:** Successfully Migrated, Security Hardened & Tested (26/26 Unit Tests Passing)  
 
 ---
 
@@ -103,9 +103,10 @@ All legacy JavaScript, TypeScript, React, Next.js, and Tauri v2 code has been re
 ## 6. Current Verification & Build Status
 
 - [x] **Compilation:** `cargo check` and `cargo build` pass with 0 errors and 0 warnings.
-- [x] **Unit Testing:** `cargo test` passes 16/16 tests covering sanitization, boundary checks, and secret redacting.
+- [x] **Unit Testing:** `cargo test` passes 26/26 tests covering sanitization, boundary checks, secret redacting, and visual query builder generation.
+- [x] **Dead UI Callbacks Fixed:** Visual Query Builder condition filters generate live safe SQL; login connection errors propagate to `AlertBanner`.
 - [x] **Identifier Boundary:** 64-character MySQL identifier limit strictly enforced.
-- [x] **Versioning:** Synchronized to `3.0.3` across `Cargo.toml`, `Cargo.lock`, and `README.md`.
+- [x] **Versioning:** Synchronized to `3.0.4` across `Cargo.toml`, `Cargo.lock`, and `README.md`.
 - [x] **CI/CD:** Multi-platform GitHub Actions workflows active for Linux, Windows, and macOS native builds.
 - [x] **Git Tracking:** Clean working tree with detailed conventional commit history.
 

@@ -4,6 +4,15 @@ All notable changes to MySQL GUI are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [3.0.4] — 2026-10-03
+
+### Fixed
+- **Visual Query Builder Live Generation:** Implemented pure function `build_query_builder_select()` in `src/db/sanitize.rs` with identifier sanitization, operator whitelisting (`=`, `!=`, `<`, `>`, `<=`, `>=`, `LIKE`, `IS NULL`, `IS NOT NULL`), string escaping via `escape_sql_string()`, and limit clamping (1–1000). Wired `on_builder_generate` in `src/app_controller.rs` and bound condition properties (`builder-cond-col`, `builder-cond-op`, `builder-cond-val`, `builder-limit-str`) in `ui/app.slint` so edits update SQL live.
+- **Login Error Propagation:** Wired error messages and loading state from `auth::login` to `AlertBanner` in `ui/views/login.slint` through `ui/app.slint`. Automatically clears error banners on each new connect attempt and scrubs raw credentials.
+
+### Added
+- **Query Builder Regression Tests:** Added 10 unit test cases in `src/db/sanitize.rs` covering normal select, value SQL injection attempt, column name SQL injection attempt, table name SQL injection attempt, empty filter list, limit boundary clamping, sort ordering, and unsupported operator rejection (total 26 passing tests).
+
 ---
 
 ## [3.0.3] — 2026-10-03

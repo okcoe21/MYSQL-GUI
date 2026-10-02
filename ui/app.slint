@@ -57,6 +57,8 @@ export component AppWindow inherits Window {
     in-out property <string> selected-db: "";
     in-out property <string> selected-table: "";
     in-out property <string> active-view: "server_overview";
+    in-out property <bool> login-loading: false;
+    in-out property <string> login-error-message: "";
 
     // Dialog state
     in-out property <bool> dialog-open: false;
@@ -115,6 +117,10 @@ export component AppWindow inherits Window {
     in-out property <[string]> builder-tables: [];
     in-out property <[string]> builder-columns: [];
     in-out property <string> builder-generated-sql: "";
+    in-out property <string> builder-cond-col: "";
+    in-out property <string> builder-cond-op: "=";
+    in-out property <string> builder-cond-val: "";
+    in-out property <string> builder-limit-str: "100";
 
     // Insert Row
     in-out property <[InsertFieldItem]> insert-fields: [];
@@ -247,6 +253,8 @@ export component AppWindow inherits Window {
         if !root.is-logged-in : login_view := LoginView {
             width: 100%;
             height: 100%;
+            loading: root.login-loading;
+            error-message: root.login-error-message;
             connect(h, p, u, pwd) => {
                 root.request-login(h, p, u, pwd);
             }
@@ -545,6 +553,10 @@ export component AppWindow inherits Window {
                         tables: root.builder-tables;
                         available-columns: root.builder-columns;
                         generated-sql <=> root.builder-generated-sql;
+                        cond-col <=> root.builder-cond-col;
+                        cond-op <=> root.builder-cond-op;
+                        cond-val <=> root.builder-cond-val;
+                        limit-str <=> root.builder-limit-str;
                         select-table(tbl) => { root.builder-select-table(tbl); }
                         run-query(q) => {
                             root.active-view = "sql";

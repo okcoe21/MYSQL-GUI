@@ -12,7 +12,7 @@ use crate::state::SharedState;
 use crate::db::{
     auth, database, table, data, query, server, objects, maintenance,
     history::HistoryManager,
-    sanitize::{sanitize_identifier, validate_column_length},
+    sanitize::{build_query_builder_select, sanitize_identifier, validate_column_length},
 };
 
 fn format_size(bytes: i64) -> String {
@@ -97,22 +97,35 @@ impl AppController {
                 let host = host.to_string();
                 let port = port.to_string();
                 let user = user.to_string();
-                let pwd = if pwd.is_empty() { None } else { Some(pwd.to_string()) };
+                let raw_pwd = pwd.to_string();
+                let pwd = if raw_pwd.is_empty() { None } else { Some(raw_pwd.clone()) };
+
+                if let Some(app) = weak.upgrade() {
+                    app.set_login_error_message("".into());
+                    app.set_login_loading(true);
+                }
 
                 tokio::spawn(async move {
                     let res = auth::login(&ctrl.state, &host, &port, &user, pwd.as_deref()).await;
                     let _ = weak.upgrade_in_event_loop(move |app| {
+                        app.set_login_loading(false);
                         match res {
                             Ok(_) => {
+                                app.set_login_error_message("".into());
                                 app.set_is_logged_in(true);
                                 app.set_server_name(format!("{}:{}", host, port).into());
                                 app.set_active_view("server_overview".into());
                                 ctrl.refresh_databases(&app);
                                 ctrl.refresh_server_overview(&app);
                             }
-                            Err(_e) => {
+                            Err(e) => {
                                 app.set_is_logged_in(false);
-                                // Set error in login view
+                                let scrubbed = if !raw_pwd.is_empty() {
+                                    e.replace(&raw_pwd, "******")
+                                } else {
+                                    e
+                                };
+                                app.set_login_error_message(scrubbed.into());
                             }
                         }
                     });
@@ -130,6 +143,8 @@ impl AppController {
                     let _ = auth::logout(&ctrl.state).await;
                     let _ = weak.upgrade_in_event_loop(move |app| {
                         app.set_is_logged_in(false);
+                        app.set_login_error_message("".into());
+                        app.set_login_loading(false);
                         app.set_selected_db("".into());
                         app.set_selected_table("".into());
                         app.set_active_view("server_overview".into());
@@ -632,14 +647,35 @@ impl AppController {
                 let ctrl = ctrl.clone();
                 let weak = weak.clone();
 
+                if let Some(app) = weak.upgrade() {
+                    app.set_selected_table(tbl_str.clone().into());
+                }
+
                 tokio::spawn(async move {
                     let desc = table::get_structure(&ctrl.state, &db, &tbl_str).await.unwrap_or_default();
                     let cols: Vec<SharedString> = desc.into_iter().map(|c| c.field.into()).collect();
-                    let sanitized_tbl = sanitize_identifier(&tbl_str)
-                        .unwrap_or_else(|_| format!("`{}`", tbl_str.replace('`', "``")));
                     let _ = weak.upgrade_in_event_loop(move |app| {
+                        app.set_selected_table(tbl_str.clone().into());
                         app.set_builder_columns(ModelRc::from(Rc::new(VecModel::from(cols))));
-                        app.set_builder_generated_sql(format!("SELECT * FROM {} LIMIT 100;", sanitized_tbl).into());
+
+                        let cond_col = app.get_builder_cond_col().to_string();
+                        let cond_op = app.get_builder_cond_op().to_string();
+                        let cond_val = app.get_builder_cond_val().to_string();
+                        let limit_str = app.get_builder_limit_str().to_string();
+                        let limit = limit_str.trim().parse::<i64>().unwrap_or(100);
+
+                        match build_query_builder_select(
+                            &tbl_str,
+                            &[],
+                            if cond_col.trim().is_empty() { None } else { Some(&cond_col) },
+                            Some(&cond_op),
+                            if cond_val.is_empty() { None } else { Some(&cond_val) },
+                            None,
+                            Some(limit),
+                        ) {
+                            Ok(sql) => app.set_builder_generated_sql(sql.into()),
+                            Err(e) => app.set_builder_generated_sql(format!("-- Error: {}", e).into()),
+                        }
                     });
                 });
             });
@@ -1092,7 +1128,34 @@ impl AppController {
         }
 
         {
-            app.on_builder_generate(move || {});
+            let weak = weak.clone();
+            app.on_builder_generate(move || {
+                if let Some(app) = weak.upgrade() {
+                    let tbl = app.get_selected_table().to_string();
+                    if tbl.is_empty() {
+                        app.set_builder_generated_sql("".into());
+                        return;
+                    }
+                    let cond_col = app.get_builder_cond_col().to_string();
+                    let cond_op = app.get_builder_cond_op().to_string();
+                    let cond_val = app.get_builder_cond_val().to_string();
+                    let limit_str = app.get_builder_limit_str().to_string();
+                    let limit = limit_str.trim().parse::<i64>().unwrap_or(100);
+
+                    match build_query_builder_select(
+                        &tbl,
+                        &[],
+                        if cond_col.trim().is_empty() { None } else { Some(&cond_col) },
+                        Some(&cond_op),
+                        if cond_val.is_empty() { None } else { Some(&cond_val) },
+                        None,
+                        Some(limit),
+                    ) {
+                        Ok(sql) => app.set_builder_generated_sql(sql.into()),
+                        Err(e) => app.set_builder_generated_sql(format!("-- Error: {}", e).into()),
+                    }
+                }
+            });
         }
     }
 

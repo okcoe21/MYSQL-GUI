@@ -170,6 +170,95 @@ pub fn clamp_limit_offset(limit: i64, offset: i64) -> (i64, i64) {
     (clamped_limit, clamped_offset)
 }
 
+/// Builds a safe SELECT query for the Visual Query Builder.
+///
+/// Quotes the table name and columns with `sanitize_identifier()`,
+/// whitelists operators (`=`, `!=`, `<`, `>`, `<=`, `>=`, `LIKE`, `IS NULL`, `IS NOT NULL`),
+/// escapes string values with `escape_sql_string()`,
+/// and clamps the limit to 1..=1000.
+pub fn build_query_builder_select(
+    table: &str,
+    columns: &[&str],
+    condition_col: Option<&str>,
+    operator: Option<&str>,
+    condition_val: Option<&str>,
+    sort: Option<(&str, &str)>,
+    limit: Option<i64>,
+) -> Result<String, String> {
+    let trimmed_table = table.trim();
+    if trimmed_table.is_empty() {
+        return Err("Table name cannot be empty".to_string());
+    }
+    let table_quoted = sanitize_identifier(trimmed_table)?;
+
+    let cols_str = if columns.is_empty() {
+        "*".to_string()
+    } else {
+        let mut quoted_cols = Vec::new();
+        for col in columns {
+            let trimmed = col.trim();
+            if trimmed == "*" {
+                quoted_cols.push("*".to_string());
+            } else if !trimmed.is_empty() {
+                quoted_cols.push(sanitize_identifier(trimmed)?);
+            }
+        }
+        if quoted_cols.is_empty() {
+            "*".to_string()
+        } else {
+            quoted_cols.join(", ")
+        }
+    };
+
+    let where_clause = if let Some(col) = condition_col.map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        let quoted_col = sanitize_identifier(col)?;
+        let op_raw = operator.unwrap_or("=").trim().to_uppercase();
+        let canonical_op = match op_raw.as_str() {
+            "=" => "=",
+            "!=" | "<>" => "!=",
+            "<" => "<",
+            ">" => ">",
+            "<=" => "<=",
+            ">=" => ">=",
+            "LIKE" => "LIKE",
+            "IS NULL" => "IS NULL",
+            "IS NOT NULL" => "IS NOT NULL",
+            _ => return Err(format!("Unsupported operator: '{}'", op_raw)),
+        };
+
+        if canonical_op == "IS NULL" || canonical_op == "IS NOT NULL" {
+            format!(" WHERE {} {}", quoted_col, canonical_op)
+        } else {
+            let val = condition_val.unwrap_or("");
+            format!(" WHERE {} {} '{}'", quoted_col, canonical_op, escape_sql_string(val))
+        }
+    } else {
+        String::new()
+    };
+
+    let order_clause = if let Some((sort_col, sort_dir)) = sort {
+        let trimmed_sort = sort_col.trim();
+        if !trimmed_sort.is_empty() {
+            let quoted_sort = sanitize_identifier(trimmed_sort)?;
+            let dir = sanitize_sort_direction(Some(sort_dir));
+            format!(" ORDER BY {} {}", quoted_sort, dir)
+        } else {
+            String::new()
+        }
+    } else {
+        String::new()
+    };
+
+    let clamped_limit = limit.unwrap_or(100).clamp(1, 1000);
+    let limit_clause = format!(" LIMIT {}", clamped_limit);
+
+    Ok(format!(
+        "SELECT {} FROM {}{}{}{};",
+        cols_str, table_quoted, where_clause, order_clause, limit_clause
+    ))
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -298,5 +387,162 @@ mod tests {
         assert!(is_destructive("UPDATE users SET active = 1"));
         assert!(!is_destructive("UPDATE users SET active = 1 WHERE id = 5"));
         assert!(!is_destructive("UPDATE users SET note = 'no where clause' WHERE user_id = 10"));
+    }
+
+    #[test]
+    fn test_query_builder_normal_select() {
+        let sql = build_query_builder_select("users", &[], None, None, None, None, Some(100)).unwrap();
+        assert_eq!(sql, "SELECT * FROM `users` LIMIT 100;");
+
+        let sql2 = build_query_builder_select("orders", &["id", "total", "status"], None, None, None, None, Some(50)).unwrap();
+        assert_eq!(sql2, "SELECT `id`, `total`, `status` FROM `orders` LIMIT 50;");
+    }
+
+    #[test]
+    fn test_query_builder_filter_conditions() {
+        let sql = build_query_builder_select("users", &[], Some("status"), Some("="), Some("active"), None, Some(100)).unwrap();
+        assert_eq!(sql, "SELECT * FROM `users` WHERE `status` = 'active' LIMIT 100;");
+
+        let sql2 = build_query_builder_select("products", &[], Some("price"), Some(">="), Some("19.99"), None, Some(25)).unwrap();
+        assert_eq!(sql2, "SELECT * FROM `products` WHERE `price` >= '19.99' LIMIT 25;");
+
+        let sql3 = build_query_builder_select("users", &[], Some("email"), Some("LIKE"), Some("%@gmail.com"), None, Some(10)).unwrap();
+        assert_eq!(sql3, "SELECT * FROM `users` WHERE `email` LIKE '%@gmail.com' LIMIT 10;");
+
+        let sql4 = build_query_builder_select("items", &[], Some("count"), Some("!="), Some("0"), None, Some(10)).unwrap();
+        assert_eq!(sql4, "SELECT * FROM `items` WHERE `count` != '0' LIMIT 10;");
+    }
+
+    #[test]
+    fn test_query_builder_null_operators() {
+        let sql1 = build_query_builder_select("users", &[], Some("deleted_at"), Some("IS NULL"), None, None, Some(100)).unwrap();
+        assert_eq!(sql1, "SELECT * FROM `users` WHERE `deleted_at` IS NULL LIMIT 100;");
+
+        let sql2 = build_query_builder_select("users", &[], Some("verified_at"), Some("IS NOT NULL"), None, None, Some(100)).unwrap();
+        assert_eq!(sql2, "SELECT * FROM `users` WHERE `verified_at` IS NOT NULL LIMIT 100;");
+    }
+
+    #[test]
+    fn test_query_builder_injection_in_value() {
+        // Value with quotes and statement injection attempt
+        let sql = build_query_builder_select(
+            "users",
+            &[],
+            Some("role"),
+            Some("="),
+            Some("x'; DROP TABLE t;--"),
+            None,
+            Some(100),
+        ).unwrap();
+        assert_eq!(sql, "SELECT * FROM `users` WHERE `role` = 'x''; DROP TABLE t;--' LIMIT 100;");
+
+        // Value with backslash and newlines
+        let sql2 = build_query_builder_select(
+            "users",
+            &[],
+            Some("bio"),
+            Some("="),
+            Some("hello\\world\nline2"),
+            None,
+            Some(50),
+        ).unwrap();
+        assert_eq!(sql2, "SELECT * FROM `users` WHERE `bio` = 'hello\\\\world\\nline2' LIMIT 50;");
+    }
+
+    #[test]
+    fn test_query_builder_injection_in_column_name() {
+        // Condition column injection
+        assert!(build_query_builder_select(
+            "users",
+            &[],
+            Some("col`; DROP TABLE users;--"),
+            Some("="),
+            Some("val"),
+            None,
+            Some(100),
+        ).is_err());
+
+        // Projection column injection
+        assert!(build_query_builder_select(
+            "users",
+            &["id", "name`; DROP TABLE users;--"],
+            None,
+            None,
+            None,
+            None,
+            Some(100),
+        ).is_err());
+    }
+
+    #[test]
+    fn test_query_builder_injection_in_table_name() {
+        assert!(build_query_builder_select(
+            "users`; DROP TABLE users;--",
+            &[],
+            None,
+            None,
+            None,
+            None,
+            Some(100),
+        ).is_err());
+        assert!(build_query_builder_select("", &[], None, None, None, None, Some(100)).is_err());
+    }
+
+    #[test]
+    fn test_query_builder_empty_filter_list() {
+        let sql = build_query_builder_select("accounts", &[], None, None, None, None, None).unwrap();
+        assert_eq!(sql, "SELECT * FROM `accounts` LIMIT 100;");
+
+        let sql2 = build_query_builder_select("accounts", &[], Some("   "), Some("="), Some("val"), None, Some(50)).unwrap();
+        assert_eq!(sql2, "SELECT * FROM `accounts` LIMIT 50;");
+    }
+
+    #[test]
+    fn test_query_builder_limit_clamping() {
+        let sql_high = build_query_builder_select("users", &[], None, None, None, None, Some(999999)).unwrap();
+        assert_eq!(sql_high, "SELECT * FROM `users` LIMIT 1000;");
+
+        let sql_zero = build_query_builder_select("users", &[], None, None, None, None, Some(0)).unwrap();
+        assert_eq!(sql_zero, "SELECT * FROM `users` LIMIT 1;");
+
+        let sql_neg = build_query_builder_select("users", &[], None, None, None, None, Some(-50)).unwrap();
+        assert_eq!(sql_neg, "SELECT * FROM `users` LIMIT 1;");
+    }
+
+    #[test]
+    fn test_query_builder_sort_ordering() {
+        let sql = build_query_builder_select(
+            "users",
+            &[],
+            None,
+            None,
+            None,
+            Some(("created_at", "DESC")),
+            Some(20),
+        ).unwrap();
+        assert_eq!(sql, "SELECT * FROM `users` ORDER BY `created_at` DESC LIMIT 20;");
+
+        assert!(build_query_builder_select(
+            "users",
+            &[],
+            None,
+            None,
+            None,
+            Some(("col`; DROP TABLE users;--", "ASC")),
+            Some(20),
+        ).is_err());
+    }
+
+    #[test]
+    fn test_query_builder_unsupported_operator() {
+        assert!(build_query_builder_select(
+            "users",
+            &[],
+            Some("id"),
+            Some("UNION SELECT 1"),
+            Some("val"),
+            None,
+            Some(100),
+        ).is_err());
     }
 }
