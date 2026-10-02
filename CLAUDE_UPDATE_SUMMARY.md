@@ -17,9 +17,9 @@ All legacy JavaScript, TypeScript, React, Next.js, and Tauri v2 code has been re
 
 ## 2. Tech Stack Matrix
 
-| Layer                       | Previous Stack (v1 / v2)          | Current Stack (v3.0.3)                                       |
+| Layer                       | Previous Stack (v1 / v2)          | Current Stack (v3.0.3)                                      |
 | -----------------------------| -----------------------------------| -------------------------------------------------------------|
-| **Frontend Framework**      | Next.js 15, React 18              | **Slint UI 1.18.1**                                          |
+| **Frontend Framework**      | Next.js 15, React 18              | **Slint UI 1.18.1**                                         |
 | **Styling & Design System** | Tailwind CSS 3                    | **Slint Declarative Styles (`ui/theme.slint`)**             |
 | **Desktop Shell**           | Tauri v2 (WebKitGTK / WebView2)   | **Native Slint Hardware Engine (OpenGL / Skia / Software)** |
 | **Language**                | TypeScript / JavaScript (Node.js) | **Pure Rust (2021 edition)**                                |
@@ -27,7 +27,7 @@ All legacy JavaScript, TypeScript, React, Next.js, and Tauri v2 code has been re
 | **Async Runtime**           | Node.js Event Loop + Tokio        | **Tokio 1.x (multi-threaded)**                              |
 | **Secret Storage**          | OS Keyring (Tauri IPC)            | **Native `keyring-rs` (SecretService / Keychain)**          |
 | **File Dialogs**            | Tauri Dialog Plugin               | **Native `rfd` (Rust File Dialogs)**                        |
-| **Test Suite**              | None (Manual)                     | **Native Cargo Test Harness (16 Unit & Security Tests)**   |
+| **Test Suite**              | None (Manual)                     | **Native Cargo Test Harness (16 Unit & Security Tests)**    |
 
 ---
 
