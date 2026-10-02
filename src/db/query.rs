@@ -5,6 +5,8 @@ use crate::state::AppState;
 use crate::db::sanitize::is_destructive;
 use crate::db::models::{row_to_json, QueryResult};
 
+pub const DEFAULT_QUERY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
+
 pub fn split_sql_statements(sql: &str) -> Vec<String> {
     let mut statements = Vec::new();
     let mut current = String::new();
@@ -153,9 +155,9 @@ pub async fn execute_query(
         || sql_upper.starts_with("DESCRIBE") 
         || sql_upper.starts_with("EXPLAIN") 
     {
-        let rows = sqlx::query(sql)
-            .fetch_all(&mut *conn)
+        let rows = tokio::time::timeout(DEFAULT_QUERY_TIMEOUT, sqlx::query(sql).fetch_all(&mut *conn))
             .await
+            .map_err(|_| format!("Query execution timed out after {} seconds.", DEFAULT_QUERY_TIMEOUT.as_secs()))?
             .map_err(|e| e.to_string())?;
             
         let elapsed = start.elapsed().as_millis() as u64;
@@ -176,7 +178,10 @@ pub async fn execute_query(
             execution_time_ms: elapsed,
         })
     } else {
-        let result = conn.execute(sql).await.map_err(|e| e.to_string())?;
+        let result = tokio::time::timeout(DEFAULT_QUERY_TIMEOUT, conn.execute(sql))
+            .await
+            .map_err(|_| format!("Query execution timed out after {} seconds.", DEFAULT_QUERY_TIMEOUT.as_secs()))?
+            .map_err(|e| e.to_string())?;
         let elapsed = start.elapsed().as_millis() as u64;
         
         Ok(QueryResult {

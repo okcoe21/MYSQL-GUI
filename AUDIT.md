@@ -30,14 +30,14 @@ While the majority of data-manipulation queries (`SELECT`, `INSERT`, `UPDATE`, `
 | **SEC-02** | `src/db/table.rs:45, 53` | DDL Injection via Unvalidated Column Length | **HIGH** | **Fixed**: Strict `validate_column_length()` checks and column type whitelist. |
 | **SEC-03** | `src/app_controller.rs:1004–1028` | DDL Injection via Unsanitized Identifiers | **HIGH** | **Fixed**: Routed identifiers through `sanitize_identifier()` and lengths through validator. |
 | **SEC-04** | `src/db/maintenance.rs:157–158` | Injection via Incomplete SQL Export Escaping | **HIGH** | **Fixed**: Standardized on `escape_sql_string()` escaping `\\`, `''`, `\0`, `\n`, `\r`, `\x1a`. |
-| **SEC-05** | `src/db/auth.rs:16–24` | Plaintext Credential Leak & URL Parameter Injection | **MEDIUM** | Unpatched |
-| **SEC-06** | `src/db/auth.rs:12–24` | Insecure Transport (Silent SSL Downgrade) | **MEDIUM** | Unpatched |
-| **SEC-07** | `src/db/sanitize.rs:14–17` | Destructive Query Guard Bypass & False Positives | **MEDIUM** | Unpatched |
+| **SEC-05** | `src/db/auth.rs:16–24` | Plaintext Credential Leak & URL Parameter Injection | **MEDIUM** | **Fixed**: Switched to `MySqlConnectOptions` and sanitized error messages. |
+| **SEC-06** | `src/db/auth.rs:12–24` | Insecure Transport (Silent SSL Downgrade) | **MEDIUM** | **Fixed**: Returns `is_encrypted` flag on `ConnectionResult`. |
+| **SEC-07** | `src/db/sanitize.rs:14–17` | Destructive Query Guard Bypass & False Positives | **MEDIUM** | **Fixed**: Word-boundary matching with leading comment/whitespace stripping. |
 | **SEC-08** | `src/app_controller.rs:639` | Identifier Injection in Query Builder | **LOW** | **Fixed**: Sanitized table identifier with `sanitize_identifier()`. |
-| **SEC-09** | `src/db/query.rs:156, 179` | Unbounded Execution & Denial of Service | **LOW** | Unpatched |
-| **SEC-10** | `src/db/auth.rs` & `Cargo.toml` | Missing Keyring Implementation | **LOW** | Unpatched |
-| **SEC-11** | `src/db/history.rs:23, 38` | Credential Persistence in Plaintext JSON | **LOW** | Unpatched |
-| **SEC-12** | `src/db/data.rs:130, 190` | Malformed SQL on Empty WHERE Clause | **LOW** | Unpatched |
+| **SEC-09** | `src/db/query.rs:156, 179` | Unbounded Execution & Denial of Service | **LOW** | **Fixed**: Wrapped query execution in 60s `tokio::time::timeout`. |
+| **SEC-10** | `src/db/auth.rs` & `Cargo.toml` | Missing Keyring Implementation | **LOW** | Deferred: feature work |
+| **SEC-11** | `src/db/history.rs:23, 38` | Credential Persistence in Plaintext JSON | **LOW** | **Fixed**: Redacted `IDENTIFIED BY` and `PASSWORD(...)` before disk writes. |
+| **SEC-12** | `src/db/data.rs:130, 190` | Malformed SQL on Empty WHERE Clause | **LOW** | **Fixed**: Returns Err on empty WHERE clause in `update_row` and `delete_row`. |
 
 ---
 
@@ -162,6 +162,7 @@ While the majority of data-manipulation queries (`SELECT`, `INSERT`, `UPDATE`, `
 ### SEC-05: Plaintext Credential Leakage in Connection Handling
 * **File:** [`src/db/auth.rs`](file:///home/coes/Projects/MYSQL%20GUI/src/db/auth.rs#L16-L24) (Lines 16–24)
 * **Severity:** **MEDIUM**
+* **Status:** **Fixed** - Switched to `MySqlConnectOptions` (.host, .port, .username, .password, .database) avoiding URL parsing, and redacted credentials from connection error strings.
 * **Vulnerable Code:**
   ```rust
   let url = format!(
@@ -199,6 +200,7 @@ While the majority of data-manipulation queries (`SELECT`, `INSERT`, `UPDATE`, `
 ### SEC-06: Insecure Transport (Silent SSL Downgrade)
 * **File:** [`src/db/auth.rs`](file:///home/coes/Projects/MYSQL%20GUI/src/db/auth.rs#L12-L24) (Lines 12–24)
 * **Severity:** **MEDIUM**
+* **Status:** **Fixed** - Retains `Preferred` SSL mode by default while exposing `is_encrypted` flag on `ConnectionResult` derived via `SHOW STATUS LIKE 'Ssl_cipher'`.
 * **Vulnerable Code:**
   The connection options do not specify an SSL mode.
 * **Impact:**  
@@ -214,6 +216,7 @@ While the majority of data-manipulation queries (`SELECT`, `INSERT`, `UPDATE`, `
 ### SEC-07: Destructive Query Guard Bypass & False Positives
 * **File:** [`src/db/sanitize.rs`](file:///home/coes/Projects/MYSQL%20GUI/src/db/sanitize.rs#L14-L17) (Lines 14–17)
 * **Severity:** **MEDIUM**
+* **Status:** **Fixed** - Rewrote `is_destructive` to strip leading comments (`--`, `#`, `/* */`) and whitespace, matching first keywords (`DROP`, `TRUNCATE`, `DELETE`, `ALTER`, `UPDATE` without WHERE, `GRANT`, `REVOKE`) with word-boundary checks as a client-side UX guard.
 * **Vulnerable Code:**
   ```rust
   pub fn is_destructive(query: &str) -> bool {
@@ -273,6 +276,7 @@ While the majority of data-manipulation queries (`SELECT`, `INSERT`, `UPDATE`, `
 ### SEC-09: Unbounded Query Execution & Missing Timeouts
 * **File:** [`src/db/query.rs`](file:///home/coes/Projects/MYSQL%20GUI/src/db/query.rs#L156-L179) (Lines 156, 179)
 * **Severity:** **LOW**
+* **Status:** **Fixed** - Wrapped statement executions in `tokio::time::timeout(DEFAULT_QUERY_TIMEOUT, ...)` defaulting to 60s with clear timeout error reporting.
 * **Impact:**  
   Queries executed from the SQL console have no execution timeout or cancellation handle. A command such as `SELECT SLEEP(3600);` blocks the background worker indefinitely until the TCP connection drops.
 * **Suggested Fix:**
@@ -288,6 +292,7 @@ While the majority of data-manipulation queries (`SELECT`, `INSERT`, `UPDATE`, `
 ### SEC-10: Dead Keyring Dependency
 * **File:** `src/db/auth.rs` & `Cargo.toml`
 * **Severity:** **LOW**
+* **Status:** **Deferred: feature work** - OS Keyring persistence scheduled for future UI credential manager enhancement.
 * **Impact:**  
   `keyring = "2"` is declared in `Cargo.toml`, but zero references to the `keyring` crate exist in `src/`. Passwords are not saved in the OS keyring, leaving user expectations unfulfilled.
 * **Suggested Fix:**
@@ -298,6 +303,7 @@ While the majority of data-manipulation queries (`SELECT`, `INSERT`, `UPDATE`, `
 ### SEC-11: Plaintext Query History on Disk
 * **File:** [`src/db/history.rs`](file:///home/coes/Projects/MYSQL%20GUI/src/db/history.rs#L23-L38) (Lines 23, 38)
 * **Severity:** **LOW**
+* **Status:** **Fixed** - Implemented `redact_secrets()` replacing credentials in `IDENTIFIED BY '...'` and `PASSWORD('...')` with `'***'` before writing to history file.
 * **Impact:**  
   All queries entered in the SQL editor are written to `~/.local/share/mysql-gui/history.json`. Administrative statements containing sensitive credentials (e.g., `CREATE USER 'app'@'%' IDENTIFIED BY 'SecretPass'`) are persisted in plaintext.
 * **Suggested Fix:**
@@ -308,6 +314,7 @@ While the majority of data-manipulation queries (`SELECT`, `INSERT`, `UPDATE`, `
 ### SEC-12: SQL Syntax Failure on Empty WHERE Object
 * **File:** [`src/db/data.rs`](file:///home/coes/Projects/MYSQL%20GUI/src/db/data.rs#L130-L200) (Lines 130 & 190)
 * **Severity:** **LOW**
+* **Status:** **Fixed** - Enforced non-empty `where_map` in `update_row` and `delete_row`, returning an `Err` to prevent syntax errors or unrestricted modifications.
 * **Impact:**  
   In `update_row` and `delete_row`, if `where_clause` is an empty JSON object `{}`, `where_parts` is empty, generating:
   ```sql

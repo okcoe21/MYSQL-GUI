@@ -128,6 +128,9 @@ pub async fn update_row(
     let sanitized_col = sanitize_identifier(column)?;
     
     let where_map = where_clause.as_object().ok_or("Where-clause must be a JSON object")?;
+    if where_map.is_empty() {
+        return Err("Refusing to update row without a WHERE condition".to_string());
+    }
     let mut where_parts = Vec::new();
     for (k, _) in where_map {
         where_parts.push(format!("{} = ?", sanitize_identifier(k)?));
@@ -188,6 +191,9 @@ pub async fn delete_row(
     let sanitized_table = sanitize_identifier(table)?;
     
     let where_map = where_clause.as_object().ok_or("Where-clause must be a JSON object")?;
+    if where_map.is_empty() {
+        return Err("Refusing to delete row without at least one WHERE condition".to_string());
+    }
     let mut where_parts = Vec::new();
     for (k, _) in where_map {
         where_parts.push(format!("{} = ?", sanitize_identifier(k)?));

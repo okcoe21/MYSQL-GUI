@@ -94,8 +94,76 @@ pub fn validate_column_length(len: &str) -> Result<String, String> {
     ))
 }
 
-/// Checks whether a query contains potentially destructive operations.
+/// Client-side UX safeguard to prompt the user for confirmation before executing
+/// potentially high-impact or destructive operations.
+///
+/// NOTE: This is purely a UX guard to prevent accidental data loss, NOT a security
+/// sandbox or access-control boundary. The SQL editor intentionally allows execution
+/// of arbitrary user SQL.
 pub fn is_destructive(query: &str) -> bool {
-    let upper = query.to_uppercase();
-    upper.contains("DROP ") || upper.contains("DELETE ") || upper.contains("TRUNCATE ") || upper.contains("ALTER ")
+    let mut s = query;
+    // Strip leading whitespace and comments (-- line comments, # line comments, /* block comments */)
+    loop {
+        s = s.trim_start();
+        if s.starts_with("--") {
+            if let Some(idx) = s.find('\n') {
+                s = &s[idx + 1..];
+                continue;
+            } else {
+                return false;
+            }
+        }
+        if s.starts_with('#') {
+            if let Some(idx) = s.find('\n') {
+                s = &s[idx + 1..];
+                continue;
+            } else {
+                return false;
+            }
+        }
+        if s.starts_with("/*") {
+            if let Some(idx) = s.find("*/") {
+                s = &s[idx + 2..];
+                continue;
+            } else {
+                return false;
+            }
+        }
+        break;
+    }
+
+    // Extract the first word/keyword using word boundaries
+    let first_word: String = s.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
+    let first_upper = first_word.to_uppercase();
+
+    match first_upper.as_str() {
+        "DROP" | "TRUNCATE" | "DELETE" | "ALTER" | "GRANT" | "REVOKE" => true,
+        "UPDATE" => {
+            // Check if UPDATE statement has no WHERE clause
+            let upper = s.to_uppercase();
+            let has_where = upper
+                .split(|c: char| !c.is_alphanumeric() && c != '_')
+                .any(|token| token == "WHERE");
+            !has_where
+        }
+        _ => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_destructive_comments_and_whitespace() {
+        assert!(is_destructive("  /*x*/ DROP\nTABLE t"));
+        assert!(is_destructive("/*comment*/TRUNCATE TABLE users"));
+        assert!(is_destructive("-- test\nDELETE FROM users;"));
+        assert!(is_destructive("ALTER TABLE orders ADD col INT"));
+        assert!(is_destructive("GRANT ALL ON *.* TO 'user'@'%'"));
+        assert!(is_destructive("REVOKE ALL ON *.* FROM 'user'@'%'"));
+        assert!(is_destructive("UPDATE users SET active = 1"));
+        assert!(!is_destructive("UPDATE users SET active = 1 WHERE id = 5"));
+        assert!(!is_destructive("SELECT * FROM users WHERE note = 'DROP TABLE'"));
+    }
 }
