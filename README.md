@@ -1,13 +1,13 @@
-# MySQL GUI (v3.0.4)
+# MySQL GUI (v3.0.5)
 
 A high-performance, native MySQL desktop client built with **Rust** and **Slint UI**.  
 Zero Electron. Zero Node.js. Zero web runtime overhead. Just pure native speed and direct SQL execution.
 
-![Version](https://img.shields.io/badge/version-3.0.4-blue)
+![Version](https://img.shields.io/badge/version-3.0.5-blue)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange)
 ![UI](https://img.shields.io/badge/UI-Slint%201.18-green)
 ![Database](https://img.shields.io/badge/Database-MySQL%20%2F%20MariaDB-4479A1)
-![Tests](https://img.shields.io/badge/Tests-26%20Passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-31%20Passing-brightgreen)
 
 ---
 
@@ -37,7 +37,8 @@ Zero Electron. Zero Node.js. Zero web runtime overhead. Just pure native speed a
 - **Presets Toolbar:** Fast shortcuts for `SELECT *`, count checks, and query formatting.
 
 ### Developer Tools & Monitoring
-- **Visual Query Builder:** Construct complex queries visually by selecting tables and conditions.
+- **Visual Query Builder:** Construct complex queries visually by selecting tables and conditions with live safe SQL generation.
+- **Transport Security Controls:** Optional "Require SSL" switch on login enforcing TLS connections; live encryption status badge (`SSL` / `NOT ENCRYPTED`) in the top navigation bar.
 - **Server Health & Monitoring:** Live connection stats, thread count, queries executed, slow query counter, and live process list.
 - **Slow Query Log Viewer:** Read and inspect slow query performance logs.
 - **Mock Data Generator:** Generate synthetic rows based on table column schemas for testing.
@@ -55,7 +56,7 @@ Zero Electron. Zero Node.js. Zero web runtime overhead. Just pure native speed a
 | **Credential Safety** | URL parsing avoided; sensitive credentials redacted from UI error dialogs and history logs. |
 | **SQL Export Escaping** | Byte-safe string escaping (`\\`, `''`, `\0`, `\n`, `\r`, `\x1a`) preventing dump restore breakouts. |
 | **Query Safeguards** | 60-second `tokio::time::timeout` and strict prevention of empty-`WHERE` updates/deletions. |
-| **Transport Introspection**| SSL/TLS session detection (`is_encrypted`) via MySQL session status inspection. |
+| **Transport Security** | SSL/TLS session detection (`is_encrypted`), user-controlled Require SSL enforcement (`MySqlSslMode::Required`), and live topbar status badge. |
 
 ---
 

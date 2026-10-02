@@ -59,6 +59,8 @@ export component AppWindow inherits Window {
     in-out property <string> active-view: "server_overview";
     in-out property <bool> login-loading: false;
     in-out property <string> login-error-message: "";
+    in-out property <bool> login-require-ssl: false;
+    in-out property <bool> is-encrypted: false;
 
     // Dialog state
     in-out property <bool> dialog-open: false;
@@ -171,7 +173,7 @@ export component AppWindow inherits Window {
     in-out property <[RelationItem]> diagram-relations: [];
 
     // Callbacks from UI to Rust
-    callback request-login(string, string, string, string);
+    callback request-login(string, string, string, string, bool);
     callback request-logout();
     callback toggle-theme();
 
@@ -255,8 +257,9 @@ export component AppWindow inherits Window {
             height: 100%;
             loading: root.login-loading;
             error-message: root.login-error-message;
-            connect(h, p, u, pwd) => {
-                root.request-login(h, p, u, pwd);
+            require-ssl <=> root.login-require-ssl;
+            connect(h, p, u, pwd, req_ssl) => {
+                root.request-login(h, p, u, pwd, req_ssl);
             }
         }
 
@@ -274,6 +277,7 @@ export component AppWindow inherits Window {
                     server-name: root.server-name;
                     selected-db: root.selected-db;
                     selected-table: root.selected-table;
+                    is-encrypted: root.is-encrypted;
 
                     navigate-server => {
                         root.selected-db = "";

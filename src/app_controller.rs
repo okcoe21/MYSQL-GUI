@@ -91,7 +91,7 @@ impl AppController {
         {
             let weak = weak.clone();
             let ctrl = self.clone();
-            app.on_request_login(move |host, port, user, pwd| {
+            app.on_request_login(move |host, port, user, pwd, req_ssl| {
                 let weak = weak.clone();
                 let ctrl = ctrl.clone();
                 let host = host.to_string();
@@ -106,13 +106,14 @@ impl AppController {
                 }
 
                 tokio::spawn(async move {
-                    let res = auth::login(&ctrl.state, &host, &port, &user, pwd.as_deref()).await;
+                    let res = auth::login(&ctrl.state, &host, &port, &user, pwd.as_deref(), req_ssl).await;
                     let _ = weak.upgrade_in_event_loop(move |app| {
                         app.set_login_loading(false);
                         match res {
-                            Ok(_) => {
+                            Ok(conn_res) => {
                                 app.set_login_error_message("".into());
                                 app.set_is_logged_in(true);
+                                app.set_is_encrypted(conn_res.is_encrypted);
                                 app.set_server_name(format!("{}:{}", host, port).into());
                                 app.set_active_view("server_overview".into());
                                 ctrl.refresh_databases(&app);
@@ -120,6 +121,7 @@ impl AppController {
                             }
                             Err(e) => {
                                 app.set_is_logged_in(false);
+                                app.set_is_encrypted(false);
                                 let scrubbed = if !raw_pwd.is_empty() {
                                     e.replace(&raw_pwd, "******")
                                 } else {
@@ -143,6 +145,7 @@ impl AppController {
                     let _ = auth::logout(&ctrl.state).await;
                     let _ = weak.upgrade_in_event_loop(move |app| {
                         app.set_is_logged_in(false);
+                        app.set_is_encrypted(false);
                         app.set_login_error_message("".into());
                         app.set_login_loading(false);
                         app.set_selected_db("".into());

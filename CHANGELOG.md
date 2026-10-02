@@ -4,6 +4,16 @@ All notable changes to MySQL GUI are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [3.0.5] — 2026-10-03
+
+### Added
+- **Require SSL Switch:** Added an interactive "Require SSL" checkbox to `ui/views/login.slint` (off by default) that switches the connection mode from `Preferred` to `MySqlSslMode::Required`.
+- **TopBar Active Encryption Indicator:** Added a live transport security badge to `ui/views/topbar.slint` displaying "SSL" in the accent color when encrypted or "NOT ENCRYPTED" in warning yellow when cleartext, with hover tooltip explanations.
+- **SSL Error Mapping & Safeguards:** Implemented `map_login_error()` in `src/db/auth.rs` mapping SSL negotiation failures on non-TLS servers to clear guidance ("Server does not support SSL. Turn off Require SSL to connect unencrypted.") with zero credential leakage.
+- **Transport Security Unit Tests:** Added unit tests in `src/db/auth.rs` verifying `resolve_ssl_mode()` and `map_login_error()` across unsupported TLS, preferred fallbacks, unrelated auth errors, and password scrubbing (31 total passing unit tests).
+
+---
+
 ## [3.0.4] — 2026-10-03
 
 ### Fixed

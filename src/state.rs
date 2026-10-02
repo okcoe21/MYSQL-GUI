@@ -8,12 +8,14 @@ pub struct ConnectionInfo {
     pub host: String,
     pub port: u16,
     pub user: String,
+    pub is_encrypted: bool,
 }
 
 pub struct AppState {
     pub pool: Mutex<Option<MySqlPool>>,
     pub current_db: Mutex<Option<String>>,
     pub info: Mutex<Option<ConnectionInfo>>,
+    pub is_encrypted: Mutex<bool>,
 }
 
 impl Default for AppState {
@@ -22,6 +24,7 @@ impl Default for AppState {
             pool: Mutex::new(None),
             current_db: Mutex::new(None),
             info: Mutex::new(None),
+            is_encrypted: Mutex::new(false),
         }
     }
 }
@@ -61,6 +64,18 @@ impl AppState {
     #[allow(dead_code)]
     pub fn get_connection_info(&self) -> Option<ConnectionInfo> {
         self.info.lock().ok().and_then(|guard| guard.clone())
+    }
+
+    #[allow(dead_code)]
+    pub fn is_encrypted(&self) -> bool {
+        self.is_encrypted.lock().map(|g| *g).unwrap_or(false)
+    }
+
+    #[allow(dead_code)]
+    pub fn set_is_encrypted(&self, val: bool) {
+        if let Ok(mut guard) = self.is_encrypted.lock() {
+            *guard = val;
+        }
     }
 }
 

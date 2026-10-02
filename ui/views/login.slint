@@ -1,6 +1,6 @@
 import { Theme } from "../theme.slint";
 import { PrimaryButton } from "../components/button.slint";
-import { TextInputBox, PasswordInputBox } from "../components/input.slint";
+import { TextInputBox, PasswordInputBox, Checkbox } from "../components/input.slint";
 import { AlertBanner } from "../components/card.slint";
 
 export component LoginView inherits Rectangle {
@@ -8,10 +8,11 @@ export component LoginView inherits Rectangle {
     in-out property <string> port: "3306";
     in-out property <string> username: "root";
     in-out property <string> password: "";
+    in-out property <bool> require-ssl: false;
     in-out property <bool> loading: false;
     in-out property <string> error-message: "";
 
-    callback connect(string, string, string, string);
+    callback connect(string, string, string, string, bool);
 
     background: Theme.bg-base;
 
@@ -27,7 +28,7 @@ export component LoginView inherits Rectangle {
             // Centered card
             card := Rectangle {
                 width: 450px;
-                height: 500px;
+                height: 530px;
                 background: Theme.bg-panel;
                 border-color: Theme.border;
                 border-width: 1px;
@@ -85,7 +86,7 @@ export component LoginView inherits Rectangle {
                                 text <=> root.host;
                                 placeholder: "localhost";
                                 enabled: !root.loading;
-                                accepted => { root.connect(root.host, root.port, root.username, root.password); }
+                                accepted => { root.connect(root.host, root.port, root.username, root.password, root.require-ssl); }
                             }
                         }
 
@@ -103,8 +104,14 @@ export component LoginView inherits Rectangle {
                                 text <=> root.port;
                                 placeholder: "3306";
                                 enabled: !root.loading;
-                                accepted => { root.connect(root.host, root.port, root.username, root.password); }
+                                accepted => { root.connect(root.host, root.port, root.username, root.password, root.require-ssl); }
                             }
+                        }
+
+                        Checkbox {
+                            text: "Require SSL";
+                            checked <=> root.require-ssl;
+                            enabled: !root.loading;
                         }
 
                         VerticalLayout {
@@ -121,7 +128,7 @@ export component LoginView inherits Rectangle {
                                 text <=> root.username;
                                 placeholder: "root";
                                 enabled: !root.loading;
-                                accepted => { root.connect(root.host, root.port, root.username, root.password); }
+                                accepted => { root.connect(root.host, root.port, root.username, root.password, root.require-ssl); }
                             }
                         }
 
@@ -139,7 +146,7 @@ export component LoginView inherits Rectangle {
                                 text <=> root.password;
                                 placeholder: "* * * * * *";
                                 enabled: !root.loading;
-                                accepted => { root.connect(root.host, root.port, root.username, root.password); }
+                                accepted => { root.connect(root.host, root.port, root.username, root.password, root.require-ssl); }
                             }
                         }
                     }
@@ -149,7 +156,7 @@ export component LoginView inherits Rectangle {
                         loading: root.loading;
                         enabled: !root.loading;
                         clicked => {
-                            root.connect(root.host, root.port, root.username, root.password);
+                            root.connect(root.host, root.port, root.username, root.password, root.require-ssl);
                         }
                     }
                 }

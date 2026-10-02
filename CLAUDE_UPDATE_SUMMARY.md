@@ -1,9 +1,9 @@
-# MySQL GUI — Project Migration & Status Report (v3.0.4)
+# MySQL GUI — Project Migration & Status Report (v3.0.5)
 
 **Date:** October 3, 2026  
 **Target:** Claude Context / Development Handoff  
 **Project:** `mysql-gui` (`/home/coes/Projects/MYSQL GUI`)  
-**Status:** Successfully Migrated, Security Hardened & Tested (26/26 Unit Tests Passing)  
+**Status:** Successfully Migrated, Security Hardened & Tested (31/31 Unit Tests Passing)  
 
 ---
 
@@ -103,10 +103,11 @@ All legacy JavaScript, TypeScript, React, Next.js, and Tauri v2 code has been re
 ## 6. Current Verification & Build Status
 
 - [x] **Compilation:** `cargo check` and `cargo build` pass with 0 errors and 0 warnings.
-- [x] **Unit Testing:** `cargo test` passes 26/26 tests covering sanitization, boundary checks, secret redacting, and visual query builder generation.
+- [x] **Unit Testing:** `cargo test` passes 31/31 tests covering sanitization, boundary checks, secret redacting, visual query builder generation, and transport SSL mode/error mapping.
+- [x] **Transport Security:** "Require SSL" switch on login enforcing `MySqlSslMode::Required`; active encryption status indicator (`SSL` vs `NOT ENCRYPTED`) with hover tooltips in `TopBar`.
 - [x] **Dead UI Callbacks Fixed:** Visual Query Builder condition filters generate live safe SQL; login connection errors propagate to `AlertBanner`.
 - [x] **Identifier Boundary:** 64-character MySQL identifier limit strictly enforced.
-- [x] **Versioning:** Synchronized to `3.0.4` across `Cargo.toml`, `Cargo.lock`, and `README.md`.
+- [x] **Versioning:** Synchronized to `3.0.5` across `Cargo.toml`, `Cargo.lock`, and `README.md`.
 - [x] **CI/CD:** Multi-platform GitHub Actions workflows active for Linux, Windows, and macOS native builds.
 - [x] **Git Tracking:** Clean working tree with detailed conventional commit history.
 
@@ -117,4 +118,3 @@ All legacy JavaScript, TypeScript, React, Next.js, and Tauri v2 code has been re
 1. **OS Keyring Integration (SEC-10):** Wire `keyring = "2"` into `src/db/auth.rs` to allow persistent, secure credential saving and auto-fill in the login view.
 2. **File Dialog Pipeline:** Hook `rfd` into `export_view.slint` and `import_view.slint` for interactive `.sql` and `.csv` export/import.
 3. **Table Data Mutations:** Add interactive modal dialogues for inserting new rows and editing existing table cells in `table_data.slint`.
-4. **SSL UI Toggle:** Expose an explicit "Require SSL" switch on `login.slint` linked to `MySqlSslMode::Required`.
