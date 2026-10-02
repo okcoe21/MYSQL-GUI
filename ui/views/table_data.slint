@@ -1,0 +1,368 @@
+import { Theme } from "../theme.slint";
+import { PanelCard, AlertBanner } from "../components/card.slint";
+import { PrimaryButton, SecondaryButton, DangerButton } from "../components/button.slint";
+
+export struct TableRowData {
+    index: int,
+    cells: [string],
+}
+
+export component TableDataView inherits Rectangle {
+    in-out property <string> db-name: "";
+    in-out property <string> table-name: "";
+    in-out property <int> total-rows: 0;
+    in-out property <int> current-page: 1;
+    in-out property <int> total-pages: 1;
+    in-out property <int> limit: 50;
+    in-out property <string> sort-col: "";
+    in-out property <string> sort-order: "ASC";
+    in-out property <bool> loading: false;
+    in-out property <string> error-message: "";
+
+    in-out property <[string]> columns: [];
+    in-out property <[TableRowData]> rows: [];
+
+    callback prev-page();
+    callback next-page();
+    callback set-limit(int);
+    callback sort(string);
+    callback delete-row(int);
+    callback refresh();
+    callback navigate-insert();
+
+    background: Theme.bg-base;
+
+    VerticalLayout {
+        padding: 16px;
+        spacing: 12px;
+
+        // Top control toolbar
+        HorizontalLayout {
+            alignment: space-between;
+
+            // Left: Table info + Row count
+            HorizontalLayout {
+                spacing: 12px;
+
+                Text {
+                    text: "📋 " + root.table-name;
+                    color: Theme.accent;
+                    font-size: Theme.font-md;
+                    font-weight: 700;
+                    font-family: Theme.font-mono;
+                    vertical-alignment: center;
+                }
+
+                Text {
+                    text: "(" + root.total-rows + " total rows)";
+                    color: Theme.text-muted;
+                    font-size: Theme.font-xs;
+                    font-family: Theme.font-mono;
+                    vertical-alignment: center;
+                }
+            }
+
+            // Right: Pagination & Actions
+            HorizontalLayout {
+                spacing: 8px;
+
+                // Limit buttons
+                HorizontalLayout {
+                    spacing: 4px;
+
+                    Text {
+                        text: "Show:";
+                        color: Theme.text-subtle;
+                        font-size: Theme.font-xs;
+                        font-family: Theme.font-mono;
+                        vertical-alignment: center;
+                    }
+
+                    Rectangle {
+                        width: 32px;
+                        height: 26px;
+                        background: root.limit == 25 ? Theme.bg-active : Theme.bg-panel;
+                        border-color: root.limit == 25 ? Theme.accent : Theme.border;
+                        border-width: 1px;
+                        border-radius: Theme.radius;
+                        Text {
+                            text: "25";
+                            color: root.limit == 25 ? Theme.accent : Theme.text-muted;
+                            font-size: Theme.font-xs;
+                            font-weight: root.limit == 25 ? 700 : 400;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.set-limit(25); }
+                        }
+                    }
+
+                    Rectangle {
+                        width: 32px;
+                        height: 26px;
+                        background: root.limit == 50 ? Theme.bg-active : Theme.bg-panel;
+                        border-color: root.limit == 50 ? Theme.accent : Theme.border;
+                        border-width: 1px;
+                        border-radius: Theme.radius;
+                        Text {
+                            text: "50";
+                            color: root.limit == 50 ? Theme.accent : Theme.text-muted;
+                            font-size: Theme.font-xs;
+                            font-weight: root.limit == 50 ? 700 : 400;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.set-limit(50); }
+                        }
+                    }
+
+                    Rectangle {
+                        width: 36px;
+                        height: 26px;
+                        background: root.limit == 100 ? Theme.bg-active : Theme.bg-panel;
+                        border-color: root.limit == 100 ? Theme.accent : Theme.border;
+                        border-width: 1px;
+                        border-radius: Theme.radius;
+                        Text {
+                            text: "100";
+                            color: root.limit == 100 ? Theme.accent : Theme.text-muted;
+                            font-size: Theme.font-xs;
+                            font-weight: root.limit == 100 ? 700 : 400;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.set-limit(100); }
+                        }
+                    }
+                }
+
+                // Prev / Next Pagination
+                HorizontalLayout {
+                    spacing: 4px;
+
+                    SecondaryButton {
+                        text: "◀ Prev";
+                        custom-font-size: Theme.font-xs;
+                        height: 26px;
+                        enabled: root.current-page > 1;
+                        clicked => { root.prev-page(); }
+                    }
+
+                    Rectangle {
+                        height: 26px;
+                        background: Theme.bg-panel;
+                        border-color: Theme.border;
+                        border-width: 1px;
+                        border-radius: Theme.radius;
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            Text {
+                                text: root.current-page + " / " + root.total-pages;
+                                color: Theme.foreground;
+                                font-size: Theme.font-xs;
+                                font-family: Theme.font-mono;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    SecondaryButton {
+                        text: "Next ▶";
+                        custom-font-size: Theme.font-xs;
+                        height: 26px;
+                        enabled: root.current-page < root.total-pages;
+                        clicked => { root.next-page(); }
+                    }
+                }
+
+                SecondaryButton {
+                    text: "↻ Refresh";
+                    custom-font-size: Theme.font-xs;
+                    height: 26px;
+                    clicked => { root.refresh(); }
+                }
+
+                PrimaryButton {
+                    text: "+ Insert Row";
+                    custom-font-size: Theme.font-xs;
+                    height: 26px;
+                    clicked => { root.navigate-insert(); }
+                }
+            }
+        }
+
+        if root.error-message != "" : AlertBanner {
+            text: root.error-message;
+            level: "error";
+        }
+
+        // Data Table Panel
+        PanelCard {
+            vertical-stretch: 1;
+            VerticalLayout {
+                padding: 0px;
+
+                // Header Row
+                Rectangle {
+                    height: 36px;
+                    background: Theme.bg-header;
+                    border-color: Theme.border;
+                    border-width: 1px;
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 8px;
+
+                        // Actions header
+                        Text {
+                            text: "ACTION";
+                            color: Theme.accent;
+                            font-size: Theme.font-xs;
+                            font-weight: 700;
+                            font-family: Theme.font-mono;
+                            width: 65px;
+                            vertical-alignment: center;
+                        }
+
+                        // Column headers
+                        for col in root.columns: Rectangle {
+                            height: 36px;
+                            background: col_touch.has-hover ? Theme.bg-hover : transparent;
+
+                            HorizontalLayout {
+                                spacing: 4px;
+                                alignment: start;
+                                padding-left: 6px;
+                                padding-right: 6px;
+
+                                Text {
+                                    text: col;
+                                    color: (root.sort-col == col) ? Theme.accent : Theme.foreground;
+                                    font-size: Theme.font-xs;
+                                    font-weight: 600;
+                                    font-family: Theme.font-mono;
+                                    vertical-alignment: center;
+                                    overflow: elide;
+                                }
+
+                                if root.sort-col == col : Text {
+                                    text: root.sort-order == "ASC" ? "▲" : "▼";
+                                    color: Theme.accent;
+                                    font-size: 10px;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            col_touch := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.sort(col); }
+                            }
+                        }
+                    }
+                }
+
+                // Table Rows
+                if root.loading : Rectangle {
+                    height: 120px;
+                    Text {
+                        text: "Loading data...";
+                        color: Theme.accent;
+                        font-size: Theme.font-sm;
+                        font-family: Theme.font-mono;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                if !root.loading && root.rows.length == 0 : Rectangle {
+                    height: 120px;
+                    Text {
+                        text: "Table is empty. No rows found.";
+                        color: Theme.text-muted;
+                        font-size: Theme.font-sm;
+                        font-family: Theme.font-mono;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                if !root.loading && root.rows.length > 0 : Flickable {
+                    vertical-stretch: 1;
+                    content-height: rows_layout.preferred-height;
+
+                    rows_layout := VerticalLayout {
+                        spacing: 1px;
+
+                        for row in root.rows: Rectangle {
+                            height: 34px;
+                            background: row_touch.has-hover ? Theme.bg-hover : (Math.mod(row.index, 2) == 0 ? Theme.bg-panel : Theme.bg-base);
+                            border-color: Theme.border;
+                            border-width: 1px;
+
+                            HorizontalLayout {
+                                padding-left: 12px;
+                                padding-right: 12px;
+                                spacing: 8px;
+
+                                // Action delete button
+                                HorizontalLayout {
+                                    width: 65px;
+
+                                    del_btn := Rectangle {
+                                        width: 24px;
+                                        height: 24px;
+                                        border-radius: Theme.radius;
+                                        background: del_touch.has-hover ? Theme.danger-subtle : transparent;
+
+                                        Text {
+                                            text: "✕";
+                                            color: del_touch.has-hover ? Theme.danger : Theme.text-subtle;
+                                            font-size: Theme.font-xs;
+                                            font-weight: 700;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+
+                                        del_touch := TouchArea {
+                                            mouse-cursor: pointer;
+                                            clicked => { root.delete-row(row.index); }
+                                        }
+                                    }
+                                }
+
+                                // Column cells
+                                for cell in row.cells: Rectangle {
+                                    height: 34px;
+
+                                    HorizontalLayout {
+                                        padding-left: 6px;
+                                        padding-right: 6px;
+                                        Text {
+                                            text: cell == "NULL" ? "NULL" : cell;
+                                            color: cell == "NULL" ? Theme.text-subtle : Theme.foreground;
+                                            font-size: Theme.font-xs;
+                                            font-italic: cell == "NULL";
+                                            font-family: Theme.font-mono;
+                                            vertical-alignment: center;
+                                            overflow: elide;
+                                        }
+                                    }
+                                }
+                            }
+
+                            row_touch := TouchArea {}
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

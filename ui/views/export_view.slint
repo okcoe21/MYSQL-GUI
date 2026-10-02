@@ -1,0 +1,191 @@
+import { Theme } from "../theme.slint";
+import { PanelCard, AlertBanner } from "../components/card.slint";
+import { PrimaryButton, SecondaryButton } from "../components/button.slint";
+import { Checkbox } from "../components/input.slint";
+
+export component ExportViewView inherits Rectangle {
+    in-out property <string> db-name: "";
+    in-out property <string> format: "sql"; // sql, json, csv
+    in-out property <bool> include-structure: true;
+    in-out property <bool> include-data: true;
+    in-out property <bool> loading: false;
+    in-out property <string> message: "";
+    in-out property <string> error-message: "";
+
+    callback set-format(string);
+    callback toggle-structure(bool);
+    callback toggle-data(bool);
+    callback export-database();
+
+    background: Theme.bg-base;
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+        content-height: content.preferred-height;
+
+        content := VerticalLayout {
+            padding: 20px;
+            spacing: 12px;
+
+            VerticalLayout {
+                spacing: 4px;
+                Text {
+                    text: "EXPORT DATABASE: " + root.db-name;
+                    color: Theme.accent;
+                    font-size: Theme.font-lg;
+                    font-weight: 700;
+                    font-family: Theme.font-mono;
+                }
+                Text {
+                    text: "Dump database schema and table contents to file";
+                    color: Theme.text-muted;
+                    font-size: Theme.font-xs;
+                    font-family: Theme.font-mono;
+                }
+            }
+
+            if root.error-message != "" : AlertBanner {
+                text: root.error-message;
+                level: "error";
+            }
+
+            if root.message != "" : AlertBanner {
+                text: root.message;
+                level: "success";
+            }
+
+            HorizontalLayout {
+                spacing: 16px;
+
+                // Format Selector
+                PanelCard {
+                    width: 300px;
+                    VerticalLayout {
+                        padding: 20px;
+                        spacing: 14px;
+
+                        Text {
+                            text: "1. FILE FORMAT";
+                            color: Theme.accent;
+                            font-size: Theme.font-xs;
+                            font-weight: 700;
+                            font-family: Theme.font-mono;
+                        }
+
+                        Rectangle {
+                            height: 36px;
+                            background: root.format == "sql" ? Theme.bg-active : Theme.bg-input;
+                            border-color: root.format == "sql" ? Theme.accent : Theme.border;
+                            border-width: 1px;
+                            border-radius: Theme.radius;
+
+                            HorizontalLayout {
+                                padding-left: 12px;
+                                Text {
+                                    text: "SQL Dump (.sql)";
+                                    color: root.format == "sql" ? Theme.accent : Theme.foreground;
+                                    font-size: Theme.font-sm;
+                                    font-weight: root.format == "sql" ? 600 : 400;
+                                    font-family: Theme.font-mono;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.set-format("sql"); }
+                            }
+                        }
+
+                        Rectangle {
+                            height: 36px;
+                            background: root.format == "json" ? Theme.bg-active : Theme.bg-input;
+                            border-color: root.format == "json" ? Theme.accent : Theme.border;
+                            border-width: 1px;
+                            border-radius: Theme.radius;
+
+                            HorizontalLayout {
+                                padding-left: 12px;
+                                Text {
+                                    text: "JSON Documents (.json)";
+                                    color: root.format == "json" ? Theme.accent : Theme.foreground;
+                                    font-size: Theme.font-sm;
+                                    font-weight: root.format == "json" ? 600 : 400;
+                                    font-family: Theme.font-mono;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.set-format("json"); }
+                            }
+                        }
+
+                        Rectangle {
+                            height: 36px;
+                            background: root.format == "csv" ? Theme.bg-active : Theme.bg-input;
+                            border-color: root.format == "csv" ? Theme.accent : Theme.border;
+                            border-width: 1px;
+                            border-radius: Theme.radius;
+
+                            HorizontalLayout {
+                                padding-left: 12px;
+                                Text {
+                                    text: "Comma-Separated (.csv)";
+                                    color: root.format == "csv" ? Theme.accent : Theme.foreground;
+                                    font-size: Theme.font-sm;
+                                    font-weight: root.format == "csv" ? 600 : 400;
+                                    font-family: Theme.font-mono;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.set-format("csv"); }
+                            }
+                        }
+                    }
+                }
+
+                // Options
+                PanelCard {
+                    VerticalLayout {
+                        padding: 20px;
+                        spacing: 16px;
+
+                        Text {
+                            text: "2. EXPORT CONTENTS";
+                            color: Theme.accent;
+                            font-size: Theme.font-xs;
+                            font-weight: 700;
+                            font-family: Theme.font-mono;
+                        }
+
+                        Checkbox {
+                            text: "Include Structure (CREATE TABLE statements)";
+                            checked: root.include-structure;
+                            enabled: root.format == "sql";
+                            toggled(c) => { root.toggle-structure(c); }
+                        }
+
+                        Checkbox {
+                            text: "Include Data (INSERT INTO rows / document values)";
+                            checked: root.include-data;
+                            toggled(c) => { root.toggle-data(c); }
+                        }
+
+                        Rectangle { height: 10px; }
+
+                        PrimaryButton {
+                            text: "⬇ Export & Save File";
+                            loading: root.loading;
+                            enabled: !root.loading;
+                            clicked => { root.export-database(); }
+                        }
+                    }
+                }
+            }
+        }
+        Rectangle { }
+    }
+}

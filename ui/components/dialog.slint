@@ -1,0 +1,82 @@
+import { Theme } from "../theme.slint";
+import { DangerButton, SecondaryButton } from "button.slint";
+
+export component ConfirmDialog inherits Rectangle {
+    in-out property <bool> is-open: false;
+    in-out property <string> title: "Confirm Action";
+    in-out property <string> message: "Are you sure you want to proceed? This action cannot be undone.";
+    in-out property <string> confirm-text: "Proceed";
+    callback confirmed();
+    callback cancelled();
+
+    // Dark backdrop overlay
+    background: rgba(0, 0, 0, 0.7);
+
+    TouchArea {
+        // Prevent clicking through
+    }
+
+    dialog-box := Rectangle {
+        width: 480px;
+        background: Theme.bg-panel;
+        border-color: Theme.danger;
+        border-width: 1px;
+        border-radius: Theme.radius;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+
+        VerticalLayout {
+            padding: 20px;
+            spacing: 16px;
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+
+                Text {
+                    text: "⚠";
+                    color: Theme.danger;
+                    font-size: Theme.font-lg;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                }
+
+                Text {
+                    text: root.title;
+                    color: Theme.danger;
+                    font-size: Theme.font-md;
+                    font-weight: 700;
+                    font-family: Theme.font-mono;
+                    vertical-alignment: center;
+                }
+            }
+
+            Text {
+                text: root.message;
+                color: Theme.foreground;
+                font-size: Theme.font-sm;
+                font-family: Theme.font-mono;
+                wrap: word-wrap;
+            }
+
+            HorizontalLayout {
+                alignment: end;
+                spacing: 10px;
+
+                SecondaryButton {
+                    text: "Cancel";
+                    clicked => {
+                        root.cancelled();
+                    }
+                }
+
+                DangerButton {
+                    text: root.confirm-text;
+                    clicked => {
+                        root.confirmed();
+                    }
+                }
+            }
+        }
+    }
+}

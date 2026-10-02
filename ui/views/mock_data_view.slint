@@ -1,0 +1,185 @@
+import { Theme } from "../theme.slint";
+import { PanelCard, AlertBanner } from "../components/card.slint";
+import { PrimaryButton, SecondaryButton } from "../components/button.slint";
+import { TextInputBox } from "../components/input.slint";
+
+export struct MockColumnBlueprint {
+    column_name: string,
+    generator_type: string,
+}
+
+export component MockDataViewView inherits Rectangle {
+    in-out property <string> db-name: "";
+    in-out property <string> table-name: "";
+    in-out property <string> count-str: "50";
+    in-out property <[MockColumnBlueprint]> blueprint: [];
+    in-out property <bool> loading: false;
+    in-out property <string> message: "";
+    in-out property <string> error-message: "";
+
+    callback update-type(int, string);
+    callback generate();
+    callback cancel();
+
+    background: Theme.bg-base;
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+        content-height: content.preferred-height;
+
+        content := VerticalLayout {
+            padding: 20px;
+            spacing: 16px;
+
+            HorizontalLayout {
+                alignment: space-between;
+
+                VerticalLayout {
+                    spacing: 4px;
+                    Text {
+                        text: "MOCK DATA GENERATOR: " + root.db-name + "." + root.table-name;
+                        color: Theme.accent;
+                        font-size: Theme.font-lg;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+                    Text {
+                        text: "Generate realistic sample data and populate records in batches";
+                        color: Theme.text-muted;
+                        font-size: Theme.font-xs;
+                        font-family: Theme.font-mono;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 8px;
+
+                    SecondaryButton {
+                        text: "Cancel";
+                        clicked => { root.cancel(); }
+                    }
+
+                    PrimaryButton {
+                        text: "⚡ Generate & Insert";
+                        loading: root.loading;
+                        enabled: !root.loading;
+                        clicked => { root.generate(); }
+                    }
+                }
+            }
+
+            if root.error-message != "" : AlertBanner {
+                text: root.error-message;
+                level: "error";
+            }
+
+            if root.message != "" : AlertBanner {
+                text: root.message;
+                level: "success";
+            }
+
+            // Count Config
+            PanelCard {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 8px;
+
+                    Text {
+                        text: "NUMBER OF RECORDS TO GENERATE";
+                        color: Theme.accent;
+                        font-size: Theme.font-xs;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 12px;
+                        TextInputBox {
+                            text <=> root.count-str;
+                            placeholder: "50";
+                            width: 120px;
+                        }
+
+                        Text {
+                            text: "records (max recommended per batch: 10,000)";
+                            color: Theme.text-muted;
+                            font-size: Theme.font-xs;
+                            font-family: Theme.font-mono;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // Blueprint Mapping
+            PanelCard {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    Text {
+                        text: "COLUMN VALUE GENERATORS";
+                        color: Theme.accent;
+                        font-size: Theme.font-xs;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+
+                    Rectangle {
+                        height: 32px;
+                        background: Theme.bg-header;
+                        border-color: Theme.border;
+                        border-width: 1px;
+
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            spacing: 12px;
+
+                            Text { text: "COLUMN NAME"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; width: 200px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "GENERATOR TYPE (name, email, phone, date, datetime, integer, text)"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; vertical-alignment: center; font-family: Theme.font-mono; }
+                        }
+                    }
+
+                    VerticalLayout {
+                        spacing: 4px;
+
+                        for col[i] in root.blueprint: Rectangle {
+                            height: 40px;
+                            background: Theme.bg-panel;
+                            border-color: Theme.border;
+                            border-width: 1px;
+
+                            HorizontalLayout {
+                                padding-left: 12px;
+                                padding-right: 12px;
+                                spacing: 12px;
+
+                                Text {
+                                    text: "📋 " + col.column_name;
+                                    color: Theme.foreground;
+                                    font-size: Theme.font-xs;
+                                    font-weight: 600;
+                                    font-family: Theme.font-mono;
+                                    width: 200px;
+                                    vertical-alignment: center;
+                                }
+
+                                TextInputBox {
+                                    text: col.generator_type;
+                                    placeholder: "text, name, email, phone, date, integer...";
+                                    height: 30px;
+                                    edited(val) => {
+                                        root.update-type(i, val);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Rectangle { }
+    }
+}

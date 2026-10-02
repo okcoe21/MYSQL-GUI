@@ -1,0 +1,232 @@
+import { Theme } from "../theme.slint";
+import { MultilineInputBox } from "../components/input.slint";
+import { PrimaryButton, SecondaryButton } from "../components/button.slint";
+import { PanelCard, AlertBanner } from "../components/card.slint";
+
+export struct SqlResultRow {
+    cells: [string],
+}
+
+export component SqlEditorView inherits Rectangle {
+    in-out property <string> db-name: "";
+    in-out property <string> query <=> sql_input.text;
+    in-out property <bool> loading: false;
+    in-out property <string> message: "";
+    in-out property <string> error-message: "";
+    in-out property <int> execution-time-ms: 0;
+    in-out property <int> affected-rows: -1;
+
+    in-out property <[string]> result-columns: [];
+    in-out property <[SqlResultRow]> result-rows: [];
+
+    callback run-query(string);
+    callback clear-query();
+
+    background: Theme.bg-base;
+
+    VerticalLayout {
+        padding: 16px;
+        spacing: 12px;
+
+        // Top toolbar
+        HorizontalLayout {
+            alignment: space-between;
+
+            VerticalLayout {
+                spacing: 2px;
+                Text {
+                    text: "SQL QUERY CONSOLE" + (root.db-name != "" ? " [" + root.db-name + "]" : "");
+                    color: Theme.accent;
+                    font-size: Theme.font-md;
+                    font-weight: 700;
+                    font-family: Theme.font-mono;
+                }
+                Text {
+                    text: "Execute custom queries, DDL, or batch SQL statements";
+                    color: Theme.text-muted;
+                    font-size: Theme.font-xs;
+                    font-family: Theme.font-mono;
+                }
+            }
+
+            // Presets
+            HorizontalLayout {
+                spacing: 6px;
+
+                SecondaryButton {
+                    text: "SELECT *";
+                    custom-font-size: Theme.font-xs;
+                    height: 26px;
+                    clicked => {
+                        root.query = "SELECT * FROM ";
+                    }
+                }
+
+                SecondaryButton {
+                    text: "INSERT";
+                    custom-font-size: Theme.font-xs;
+                    height: 26px;
+                    clicked => {
+                        root.query = "INSERT INTO  () VALUES ();";
+                    }
+                }
+
+                SecondaryButton {
+                    text: "SHOW TABLES";
+                    custom-font-size: Theme.font-xs;
+                    height: 26px;
+                    clicked => {
+                        root.query = "SHOW TABLES;";
+                    }
+                }
+
+                SecondaryButton {
+                    text: "Clear";
+                    custom-font-size: Theme.font-xs;
+                    height: 26px;
+                    clicked => {
+                        root.query = "";
+                        root.clear-query();
+                    }
+                }
+
+                PrimaryButton {
+                    text: "▶ Run Query";
+                    loading: root.loading;
+                    enabled: !root.loading && root.query != "";
+                    height: 30px;
+                    clicked => {
+                        root.run-query(root.query);
+                    }
+                }
+            }
+        }
+
+        // SQL Input Box
+        Rectangle {
+            height: 160px;
+            sql_input := MultilineInputBox {
+                placeholder: "Enter SQL statement (e.g. SELECT * FROM users LIMIT 10;)...";
+            }
+        }
+
+        // Status / Message bar
+        if root.error-message != "" : AlertBanner {
+            text: root.error-message;
+            level: "error";
+        }
+
+        if root.message != "" && root.error-message == "" : AlertBanner {
+            text: root.message + " (" + root.execution-time-ms + " ms)";
+            level: "success";
+        }
+
+        // Results Section
+        PanelCard {
+            vertical-stretch: 1;
+            VerticalLayout {
+                padding: 0px;
+
+                // Header info
+                Rectangle {
+                    height: 34px;
+                    background: Theme.bg-header;
+                    border-color: Theme.border;
+                    border-width: 1px;
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        alignment: space-between;
+
+                        Text {
+                            text: "RESULTS (" + root.result-rows.length + " rows)";
+                            color: Theme.accent;
+                            font-size: Theme.font-xs;
+                            font-weight: 700;
+                            font-family: Theme.font-mono;
+                            vertical-alignment: center;
+                        }
+
+                        if root.execution-time-ms > 0 : Text {
+                            text: "Execution: " + root.execution-time-ms + " ms";
+                            color: Theme.text-muted;
+                            font-size: Theme.font-xs;
+                            font-family: Theme.font-mono;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Table Columns Header
+                if root.result-columns.length > 0 : Rectangle {
+                    height: 32px;
+                    background: Theme.bg-panel;
+                    border-color: Theme.border;
+                    border-width: 1px;
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 12px;
+
+                        for col in root.result-columns: Text {
+                            text: col;
+                            color: Theme.accent;
+                            font-size: Theme.font-xs;
+                            font-weight: 600;
+                            font-family: Theme.font-mono;
+                            vertical-alignment: center;
+                            overflow: elide;
+                        }
+                    }
+                }
+
+                // Table Rows
+                if root.result-rows.length == 0 && root.error-message == "" && root.message == "" : Rectangle {
+                    height: 120px;
+                    Text {
+                        text: "Enter a query above and click 'Run Query'.";
+                        color: Theme.text-muted;
+                        font-size: Theme.font-sm;
+                        font-family: Theme.font-mono;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                if root.result-rows.length > 0 : Flickable {
+                    vertical-stretch: 1;
+                    content-height: res_rows.preferred-height;
+
+                    res_rows := VerticalLayout {
+                        spacing: 1px;
+
+                        for row[i] in root.result-rows: Rectangle {
+                            height: 32px;
+                            background: Math.mod(i, 2) == 0 ? Theme.bg-panel : Theme.bg-base;
+                            border-color: Theme.border;
+                            border-width: 1px;
+
+                            HorizontalLayout {
+                                padding-left: 12px;
+                                padding-right: 12px;
+                                spacing: 12px;
+
+                                for cell in row.cells: Text {
+                                    text: cell == "NULL" ? "NULL" : cell;
+                                    color: cell == "NULL" ? Theme.text-subtle : Theme.foreground;
+                                    font-size: Theme.font-xs;
+                                    font-italic: cell == "NULL";
+                                    font-family: Theme.font-mono;
+                                    vertical-alignment: center;
+                                    overflow: elide;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

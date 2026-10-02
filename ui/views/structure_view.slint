@@ -1,0 +1,116 @@
+import { Theme } from "../theme.slint";
+import { PanelCard } from "../components/card.slint";
+import { SecondaryButton } from "../components/button.slint";
+
+export struct ColumnInfoItem {
+    field: string,
+    col_type: string,
+    is_null: string,
+    key_type: string,
+    default_val: string,
+    extra: string,
+}
+
+export component StructureViewView inherits Rectangle {
+    in-out property <string> db-name: "";
+    in-out property <string> table-name: "";
+    in-out property <[ColumnInfoItem]> columns: [];
+
+    callback refresh();
+
+    background: Theme.bg-base;
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+        content-height: content.preferred-height;
+
+        content := VerticalLayout {
+            padding: 20px;
+            spacing: 16px;
+
+            HorizontalLayout {
+                alignment: space-between;
+
+                VerticalLayout {
+                    spacing: 4px;
+                    Text {
+                        text: "STRUCTURE: " + root.db-name + "." + root.table-name;
+                        color: Theme.accent;
+                        font-size: Theme.font-lg;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+                    Text {
+                        text: "Table Columns, Data Types, Constraints & Indexes";
+                        color: Theme.text-muted;
+                        font-size: Theme.font-xs;
+                        font-family: Theme.font-mono;
+                    }
+                }
+
+                SecondaryButton {
+                    text: "↻ Refresh";
+                    clicked => { root.refresh(); }
+                }
+            }
+
+            PanelCard {
+                VerticalLayout {
+                    padding: 0px;
+
+                    // Table Header
+                    Rectangle {
+                        height: 36px;
+                        background: Theme.bg-header;
+                        border-color: Theme.border;
+                        border-width: 1px;
+
+                        HorizontalLayout {
+                            padding-left: 16px;
+                            padding-right: 16px;
+                            spacing: 12px;
+
+                            Text { text: "#"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 700; width: 40px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "FIELD NAME"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 700; width: 200px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "TYPE"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 700; width: 160px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "NULL"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 700; width: 80px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "KEY"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 700; width: 80px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "DEFAULT"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 700; width: 140px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "EXTRA"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 700; vertical-alignment: center; font-family: Theme.font-mono; }
+                        }
+                    }
+
+                    // Column Rows
+                    VerticalLayout {
+                        spacing: 1px;
+
+                        for col[i] in root.columns: Rectangle {
+                            height: 34px;
+                            background: row_touch.has-hover ? Theme.bg-hover : (Math.mod(i, 2) == 0 ? Theme.bg-panel : Theme.bg-base);
+                            border-color: Theme.border;
+                            border-width: 1px;
+
+                            HorizontalLayout {
+                                padding-left: 16px;
+                                padding-right: 16px;
+                                spacing: 12px;
+
+                                Text { text: (i + 1) + ""; color: Theme.text-subtle; font-size: Theme.font-xs; width: 40px; vertical-alignment: center; font-family: Theme.font-mono; }
+                                Text { text: col.field; color: Theme.foreground; font-size: Theme.font-xs; font-weight: 600; width: 200px; vertical-alignment: center; font-family: Theme.font-mono; overflow: elide; }
+                                Text { text: col.col_type; color: Theme.accent; font-size: Theme.font-xs; width: 160px; vertical-alignment: center; font-family: Theme.font-mono; }
+                                Text { text: col.is_null; color: col.is_null == "YES" ? Theme.text-muted : Theme.foreground; font-size: Theme.font-xs; width: 80px; vertical-alignment: center; font-family: Theme.font-mono; }
+                                Text { text: col.key_type; color: col.key_type == "PRI" ? Theme.accent : Theme.text-muted; font-size: Theme.font-xs; font-weight: col.key_type == "PRI" ? 700 : 400; width: 80px; vertical-alignment: center; font-family: Theme.font-mono; }
+                                Text { text: col.default_val; color: Theme.text-muted; font-size: Theme.font-xs; width: 140px; vertical-alignment: center; font-family: Theme.font-mono; }
+                                Text { text: col.extra; color: Theme.text-subtle; font-size: Theme.font-xs; vertical-alignment: center; font-family: Theme.font-mono; }
+                            }
+
+                            row_touch := TouchArea {}
+                        }
+                    }
+                }
+            }
+        }
+        Rectangle { }
+    }
+}

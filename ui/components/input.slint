@@ -1,0 +1,178 @@
+import { Theme } from "../theme.slint";
+
+export component TextInputBox inherits Rectangle {
+    in-out property <string> text <=> input.text;
+    in-out property <string> placeholder: "";
+    in-out property <bool> enabled: true;
+    in-out property <length> font-size: Theme.font-sm;
+    callback accepted(string);
+    callback edited(string);
+
+    background: Theme.bg-input;
+    border-color: input.has-focus ? Theme.border-focus : Theme.border;
+    border-width: 1px;
+    border-radius: Theme.radius;
+    height: 34px;
+
+    animate border-color { duration: 120ms; }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+
+        input := TextInput {
+            enabled: root.enabled;
+            color: Theme.foreground;
+            font-size: root.font-size;
+            vertical-alignment: center;
+            font-family: Theme.font-mono;
+            single-line: true;
+            accepted => { root.accepted(self.text); }
+            edited => { root.edited(self.text); }
+        }
+    }
+
+    if input.text == "" && !input.has-focus : Text {
+        x: 10px;
+        y: (parent.height - self.height) / 2;
+        text: root.placeholder;
+        color: Theme.text-subtle;
+        font-size: root.font-size;
+        font-family: Theme.font-mono;
+    }
+}
+
+export component PasswordInputBox inherits Rectangle {
+    in-out property <string> text <=> input.text;
+    in-out property <string> placeholder: "";
+    in-out property <bool> enabled: true;
+    callback accepted(string);
+    callback edited(string);
+
+    background: Theme.bg-input;
+    border-color: input.has-focus ? Theme.border-focus : Theme.border;
+    border-width: 1px;
+    border-radius: Theme.radius;
+    height: 34px;
+
+    animate border-color { duration: 120ms; }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+
+        input := TextInput {
+            enabled: root.enabled;
+            color: Theme.foreground;
+            font-size: Theme.font-sm;
+            vertical-alignment: center;
+            font-family: Theme.font-mono;
+            input-type: password;
+            single-line: true;
+            accepted => { root.accepted(self.text); }
+            edited => { root.edited(self.text); }
+        }
+    }
+
+    if input.text == "" && !input.has-focus : Text {
+        x: 10px;
+        y: (parent.height - self.height) / 2;
+        text: root.placeholder;
+        color: Theme.text-subtle;
+        font-size: Theme.font-sm;
+        font-family: Theme.font-mono;
+    }
+}
+
+export component MultilineInputBox inherits Rectangle {
+    in-out property <string> text <=> input.text;
+    in-out property <string> placeholder: "";
+    in-out property <bool> enabled: true;
+    callback edited(string);
+
+    background: Theme.bg-input;
+    border-color: input.has-focus ? Theme.border-focus : Theme.border;
+    border-width: 1px;
+    border-radius: Theme.radius;
+
+    animate border-color { duration: 120ms; }
+
+    Flickable {
+        content-height: max(parent.height - 16px, input.preferred-height);
+        
+        HorizontalLayout {
+            padding: 8px;
+            
+            input := TextInput {
+                enabled: root.enabled;
+                color: Theme.foreground;
+                font-size: Theme.font-sm;
+                font-family: Theme.font-mono;
+                single-line: false;
+                wrap: word-wrap;
+                edited => { root.edited(self.text); }
+            }
+        }
+        Rectangle { }
+    }
+
+    if input.text == "" && !input.has-focus : Text {
+        x: 10px;
+        y: 10px;
+        text: root.placeholder;
+        color: Theme.text-subtle;
+        font-size: Theme.font-sm;
+        font-family: Theme.font-mono;
+    }
+}
+
+export component Checkbox inherits Rectangle {
+    in-out property <string> text: "";
+    in-out property <bool> checked: false;
+    in-out property <bool> enabled: true;
+    callback toggled(bool);
+
+    height: 24px;
+    background: transparent;
+
+    HorizontalLayout {
+        spacing: 8px;
+        alignment: start;
+
+        box := Rectangle {
+            width: 16px;
+            height: 16px;
+            y: (parent.height - self.height) / 2;
+            background: root.checked ? Theme.accent : Theme.bg-input;
+            border-color: root.checked ? Theme.accent : Theme.border;
+            border-width: 1px;
+            border-radius: Theme.radius;
+
+            if root.checked : Text {
+                text: "✓";
+                color: Theme.is-dark ? #0d0d0d : #ffffff;
+                font-size: 11px;
+                font-weight: 700;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        if root.text != "" : Text {
+            text: root.text;
+            color: Theme.foreground;
+            font-size: Theme.font-sm;
+            font-family: Theme.font-mono;
+            vertical-alignment: center;
+        }
+    }
+
+    TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => {
+            root.checked = !root.checked;
+            root.toggled(root.checked);
+        }
+    }
+}

@@ -1,0 +1,193 @@
+import { Theme } from "../theme.slint";
+
+export component PrimaryButton inherits Rectangle {
+    in-out property <string> text: "Submit";
+    in-out property <bool> enabled: true;
+    in-out property <bool> loading: false;
+    in-out property <length> custom-font-size: Theme.font-sm;
+    callback clicked();
+
+    background: !enabled ? (Theme.is-dark ? #222222 : #cccccc) : (touch.pressed ? Theme.accent-hover : (touch.has-hover ? Theme.accent : Theme.bg-base));
+    border-color: !enabled ? (Theme.is-dark ? #333333 : #bbbbbb) : Theme.accent;
+    border-width: 1px;
+    border-radius: Theme.radius;
+    height: 34px;
+
+    animate background { duration: 120ms; }
+    animate border-color { duration: 120ms; }
+
+    HorizontalLayout {
+        alignment: center;
+        spacing: 6px;
+        padding-left: 14px;
+        padding-right: 14px;
+
+        Text {
+            text: loading ? "Loading..." : root.text;
+            color: !root.enabled ? (Theme.is-dark ? #666666 : #888888) : (touch.has-hover ? (Theme.is-dark ? #0d0d0d : #ffffff) : Theme.accent);
+            font-size: root.custom-font-size;
+            font-weight: 600;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+            font-family: Theme.font-mono;
+        }
+    }
+
+    touch := TouchArea {
+        enabled: root.enabled && !root.loading;
+        mouse-cursor: root.enabled ? pointer : default;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+export component SecondaryButton inherits Rectangle {
+    in-out property <string> text: "Cancel";
+    in-out property <bool> enabled: true;
+    in-out property <length> custom-font-size: Theme.font-sm;
+    callback clicked();
+
+    background: touch.pressed ? Theme.bg-active : (touch.has-hover ? Theme.bg-hover : Theme.bg-panel);
+    border-color: touch.has-hover ? Theme.text-muted : Theme.border;
+    border-width: 1px;
+    border-radius: Theme.radius;
+    height: 34px;
+
+    animate background { duration: 120ms; }
+    animate border-color { duration: 120ms; }
+
+    HorizontalLayout {
+        alignment: center;
+        padding-left: 12px;
+        padding-right: 12px;
+
+        Text {
+            text: root.text;
+            color: !root.enabled ? Theme.text-subtle : (touch.has-hover ? Theme.foreground : Theme.text-muted);
+            font-size: root.custom-font-size;
+            font-weight: 500;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+            font-family: Theme.font-mono;
+        }
+    }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+export component DangerButton inherits Rectangle {
+    in-out property <string> text: "Delete";
+    in-out property <bool> enabled: true;
+    callback clicked();
+
+    background: touch.pressed ? Theme.danger-hover : (touch.has-hover ? Theme.danger : Theme.bg-base);
+    border-color: Theme.danger;
+    border-width: 1px;
+    border-radius: Theme.radius;
+    height: 34px;
+
+    animate background { duration: 120ms; }
+
+    HorizontalLayout {
+        alignment: center;
+        padding-left: 12px;
+        padding-right: 12px;
+
+        Text {
+            text: root.text;
+            color: touch.has-hover ? #ffffff : Theme.danger;
+            font-size: Theme.font-sm;
+            font-weight: 600;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+            font-family: Theme.font-mono;
+        }
+    }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+export component GhostButton inherits Rectangle {
+    in-out property <string> text: "";
+    in-out property <bool> active: false;
+    callback clicked();
+
+    background: active ? Theme.bg-active : (touch.has-hover ? Theme.bg-hover : transparent);
+    border-radius: Theme.radius;
+
+    HorizontalLayout {
+        alignment: center;
+        padding-left: 8px;
+        padding-right: 8px;
+
+        Text {
+            text: root.text;
+            color: root.active ? Theme.accent : (touch.has-hover ? Theme.accent : Theme.text-muted);
+            font-size: Theme.font-sm;
+            font-weight: 500;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+            font-family: Theme.font-mono;
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+export component TabButton inherits Rectangle {
+    in-out property <string> text: "Tab";
+    in-out property <bool> active: false;
+    callback clicked();
+
+    background: touch.has-hover ? Theme.bg-hover : transparent;
+    border-radius: 0px;
+    height: 38px;
+
+    HorizontalLayout {
+        alignment: center;
+        padding-left: 16px;
+        padding-right: 16px;
+
+        Text {
+            text: root.text;
+            color: root.active ? Theme.accent : (touch.has-hover ? Theme.foreground : Theme.text-muted);
+            font-size: Theme.font-sm;
+            font-weight: root.active ? 600 : 500;
+            vertical-alignment: center;
+            font-family: Theme.font-mono;
+        }
+    }
+
+    // Active bottom indicator bar
+    Rectangle {
+        y: parent.height - 2px;
+        height: 2px;
+        width: parent.width;
+        background: root.active ? Theme.accent : transparent;
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}

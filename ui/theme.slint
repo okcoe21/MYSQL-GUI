@@ -1,0 +1,39 @@
+export global Theme {
+    in-out property <bool> is-dark: true;
+
+    out property <color> bg-base: is-dark ? #0d0d0d : #f8fafc;
+    out property <color> bg-panel: is-dark ? #1a1a1a : #ffffff;
+    out property <color> bg-header: is-dark ? #151515 : #f1f5f9;
+    out property <color> bg-input: is-dark ? #0d0d0d : #ffffff;
+    out property <color> bg-hover: is-dark ? #262626 : #e2e8f0;
+    out property <color> bg-active: is-dark ? #22332a : #ccfbf1;
+    out property <color> bg-selected: is-dark ? #183325 : #e6fffa;
+    
+    out property <color> foreground: is-dark ? #e8e8e8 : #0f172a;
+    out property <color> text-muted: is-dark ? #8c8c8c : #64748b;
+    out property <color> text-subtle: is-dark ? #555555 : #94a3b8;
+    
+    out property <color> accent: is-dark ? #00ff9d : #0d9488;
+    out property <color> accent-hover: is-dark ? #33ffb1 : #0f766e;
+    out property <color> accent-subtle: is-dark ? rgba(0, 255, 157, 0.12) : rgba(13, 148, 136, 0.12);
+    
+    out property <color> border: is-dark ? #2a2a2a : #e2e8f0;
+    out property <color> border-focus: is-dark ? #00ff9d : #0d9488;
+    
+    out property <color> danger: #ef4444;
+    out property <color> danger-hover: #dc2626;
+    out property <color> danger-subtle: rgba(239, 68, 68, 0.12);
+    
+    out property <color> warning: #f59e0b;
+    out property <color> success: #10b981;
+    out property <color> info: #38bdf8;
+
+    out property <length> radius: 2px;
+    out property <length> font-xs: 11px;
+    out property <length> font-sm: 13px;
+    out property <length> font-md: 15px;
+    out property <length> font-lg: 20px;
+    out property <length> font-xl: 26px;
+
+    out property <string> font-mono: "JetBrains Mono";
+}

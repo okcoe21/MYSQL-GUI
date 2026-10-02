@@ -1,154 +1,118 @@
-# MySQL GUI
+# MySQL GUI (v3.0)
 
-A beginner-focused, open-source MySQL client that runs in the browser.
-No installation. No Electron. No bloat — just connect and go.
+A high-performance, native MySQL desktop client built with **Rust** and **Slint UI**.  
+Zero Electron. Zero Node.js. Zero web runtime overhead. Just pure native speed and direct SQL execution.
 
-![License](https://img.shields.io/github/license/okcoe21/MYSQL-GUI)
-![Version](https://img.shields.io/badge/version-1.0.0-7C3AED)
-![Next.js](https://img.shields.io/badge/Next.js-16-black)
-![Stars](https://img.shields.io/github/stars/okcoe21/MYSQL-GUI)
+![Version](https://img.shields.io/badge/version-3.0.0-blue)
+![Rust](https://img.shields.io/badge/Rust-2021-orange)
+![UI](https://img.shields.io/badge/UI-Slint%201.18-green)
+![Database](https://img.shields.io/badge/Database-MySQL%20%2F%20MariaDB-4479A1)
 
 ---
 
-## What it does
+## Highlights
 
-MySQL GUI lets you connect to any MySQL server and manage it through a clean, fast web interface — no desktop app required. Built for learners and developers who want something lighter than TablePlus or DBeaver, and more powerful than phpMyAdmin.
+* **Instant Startup & Minimal Footprint:** Compiles directly into a single native binary. No Chromium, No WebViews, sub-50ms cold startup.
+* **Fully Native Declarative UI:** Built with [Slint](https://slint.dev), utilizing hardware-accelerated rendering and responsive layouts.
+* **Async MySQL Driver:** Directly driven by [`sqlx`](https://github.com/launchbadge/sqlx) and `tokio` for pooled, concurrent database operations.
+* **Secure Credential Storage:** Zero plaintext passwords on disk; utilizes OS Keyring via `keyring-rs`.
 
 ---
 
 ## Features
 
-**Database & Table Management**
-- Browse, create, and drop databases and tables
-- Inline row insert, edit, and delete with paginated table view
-- Full schema browser — columns, types, keys, indexes
+### Database & Table Management
+- **Database Explorer:** Browse, create, and drop databases with live table counts.
+- **Table Data Viewer:** Paginated data grid with customizable limit (25, 50, 100), column sorting, and row deletion.
+- **Table Structure Inspector:** Deep inspection of column names, data types, nullability, keys (PRI, UNI, MUL), and extra attributes.
+- **Create Table Designer:** Visual column definition builder with type selection, constraints, and instant DDL generation.
 
-**SQL Editor**
-- Write and run any SQL with syntax highlighting
-- Keyword autocomplete with live table/column hints
-- Rule-based query explainer — understand any query in plain English, no AI needed
-- Query history panel with one-click re-run
-- Destructive operation guard (DROP, DELETE prompt for confirmation)
+### SQL Query Console
+- **Custom SQL Execution:** Execute custom queries, DDL, batch updates, and transactions.
+- **Query Results Table:** Paginated column and row visualization with execution duration telemetry.
+- **Query History:** Log of executed queries with one-click re-run, favorites, and timestamping.
+- **Presets Toolbar:** Fast shortcuts for `SELECT *`, count checks, and query formatting.
 
-**AI — Natural Language → SQL**
-- Type "show me all users who signed up last month" → get runnable SQL
-- Supports Anthropic, OpenAI, Gemini, and local Ollama
-- Bring your own key — zero vendor lock-in
+### Developer Tools & Monitoring
+- **Visual Query Builder:** Construct complex queries visually by selecting tables and conditions.
+- **Server Health & Monitoring:** Live connection stats, thread count, queries executed, slow query counter, and live process list.
+- **Slow Query Log Viewer:** Read and inspect slow query performance logs.
+- **Mock Data Generator:** Generate synthetic rows based on table column schemas for testing.
+- **Export & Import:** Export data as SQL dump or JSON/CSV, import external `.sql` scripts.
+- **User & Privileges:** Inspect MySQL users, hosts, and account permissions.
 
-**Schema Tools**
-- Foreign key relationship diagram
-- Views, procedures, and function listing
-- Export as SQL dump, JSON, or CSV
-- Import `.sql` script files
-- Mock data generator — fill tables instantly for testing
+---
 
-**Server Monitoring**
-- Live process list
-- Server metrics dashboard (traffic, buffer pools, uptime)
-- Slow query log viewer
-- User and host account listing
+## Architecture
+
+| Component | Technology | Description |
+|---|---|---|
+| **GUI Framework** | [Slint 1.18](https://slint.dev) | Hardware-accelerated native UI declarative engine |
+| **Language** | Rust (2021 edition) | High safety, low memory overhead, zero runtime GC |
+| **Async Runtime** | Tokio | Multi-threaded async runtime |
+| **Database Engine** | SQLx (MySQL) | Native non-blocking async SQL connection pool |
+| **Credential Store** | keyring-rs | Secret storage via system keychain (SecretService / Keychain) |
+| **File Dialogs** | rfd | Native OS file picker dialogs |
+
+### Directory Layout
+```text
+├── build.rs             # Slint AOT compiler build hook
+├── Cargo.toml           # Project dependencies and crate metadata
+├── src/
+│   ├── main.rs          # Application entry point and window lifecycle
+│   ├── app_controller.rs# State coordinator and UI-to-Database callbacks
+│   ├── state.rs         # Global application state and connection metadata
+│   └── db/              # Modular SQLx database handlers
+│       ├── auth.rs      # Connection authentication and keyring storage
+│       ├── database.rs  # Database level inspection and creation
+│       ├── table.rs     # Table schemas and metadata
+│       ├── data.rs      # Paginated row retrieval, mutation, and counts
+│       ├── query.rs     # Arbitrary query executor
+│       ├── server.rs    # Server stats and process list
+│       ├── history.rs   # Persistent query history
+│       └── ...
+└── ui/
+    ├── app.slint        # Root AppWindow layout and view router
+    ├── theme.slint      # Design tokens (colors, typography, radii)
+    ├── components/      # Reusable Slint widgets (buttons, cards, inputs, dialogs)
+    └── views/           # Dedicated application screens
+        ├── login.slint
+        ├── sidebar.slint
+        ├── topbar.slint
+        ├── server_overview.slint
+        ├── db_overview.slint
+        ├── table_data.slint
+        ├── sql_editor.slint
+        └── ...
+```
 
 ---
 
 ## Getting Started
 
 ### Prerequisites
+- **Rust Toolchain:** `rustc` and `cargo` 1.75+ ([rustup.rs](https://rustup.rs/))
+- **MySQL / MariaDB:** A running MySQL server instance (local or remote)
+- **Linux Packages (if building on Linux):** Standard X11 / Wayland development headers and `libfontconfig` (`libfontconfig1-dev` on Debian/Ubuntu).
 
-- Node.js 18+
-- A running MySQL server (local or remote)
-
-### Run locally
-
+### Running in Development
 ```bash
-git clone https://github.com/okcoe21/MYSQL-GUI.git
-cd MYSQL-GUI
-npm install
-cp .env.example .env.local
-npm run dev
+cargo run
 ```
 
-Open [http://localhost:3000](http://localhost:3000), enter your MySQL credentials, and connect.
-
-### Environment variables
-
-```env
-# Required
-SESSION_SECRET=your-secret-key-change-this
-
-# Optional — enable AI natural language → SQL
-# Only one is needed. Priority: Anthropic > OpenAI > Gemini > Ollama
-ANTHROPIC_API_KEY=
-OPENAI_API_KEY=
-GEMINI_API_KEY=
-OLLAMA_HOST=http://localhost:11434
-OLLAMA_MODEL=llama3
+### Building for Release
+```bash
+cargo build --release
 ```
+The optimized native binary will be generated at `target/release/mysql-gui`.
 
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 16 (App Router) |
-| Language | TypeScript |
-| Database driver | mysql2/promise |
-| Auth | JWT via jose |
-| AI | Anthropic / OpenAI / Gemini / Ollama (fetch, no SDK) |
-| Styling | CSS Modules, neobrutalist design system |
-| Icons | lucide-react |
-
----
-
-## Project Structure
-
+### Live UI Preview with `slint-viewer`
+You can preview and test UI components live without compiling Rust:
+```bash
+slint-viewer ui/app.slint
 ```
-app/
-├── api/          # 26 API route handlers
-├── dashboard/    # All UI modules (SQL editor, diagrams, monitoring, etc.)
-└── login/        # Credentials form
-
-lib/
-├── db.ts             # mysql2 connection pool management
-├── llm.ts            # Multi-provider LLM abstraction
-├── sanitize.ts       # SQL injection safeguards
-├── session.ts        # JWT cookie utilities
-├── sqlAutocomplete.ts # Client-side autocomplete engine
-└── sqlExplainer.ts   # Rule-based query explainer
-```
-
----
-
-## Roadmap
-
-| Version | What's coming |
-|---|---|
-| **v2.0.0** | Desktop app — Linux, macOS, Windows (Tauri + Rust) |
-| **v2.1.0** | Multi-query tabs, saved queries library, improved history |
-| **v2.2.0** | EXPLAIN plan viewer, live monitor, schema diff tool |
-
-See [CHANGELOG.md](./CHANGELOG.md) for full history.
-
----
-
-## Contributing
-
-PRs are welcome. Branch off `dev`, not `main`.
-
-```
-main      ← stable releases only
-dev       ← active development
-feature/* ← branch off dev for new features
-```
-
-Open an issue before starting large features so we can align on approach.
 
 ---
 
 ## License
-
-MIT — use it, fork it, build on it.
-
----
-
-<p align="center">Built by <a href="https://github.com/okcoe21">okcoe21</a></p>
+MIT

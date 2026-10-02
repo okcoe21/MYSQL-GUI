@@ -1,0 +1,170 @@
+import { Theme } from "../theme.slint";
+import { PanelCard, AlertBanner } from "../components/card.slint";
+import { PrimaryButton, SecondaryButton, DangerButton } from "../components/button.slint";
+
+export component OperationsViewView inherits Rectangle {
+    in-out property <string> db-name: "";
+    in-out property <string> table-name: "";
+    in-out property <string> error-message: "";
+
+    callback navigate-mock-data();
+    callback truncate-table();
+    callback drop-table();
+
+    background: Theme.bg-base;
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+        content-height: content.preferred-height;
+
+        content := VerticalLayout {
+            padding: 20px;
+            spacing: 12px;
+
+            VerticalLayout {
+                spacing: 4px;
+                Text {
+                    text: "TABLE OPERATIONS: " + root.db-name + "." + root.table-name;
+                    color: Theme.accent;
+                    font-size: Theme.font-lg;
+                    font-weight: 700;
+                    font-family: Theme.font-mono;
+                }
+                Text {
+                    text: "Maintenance and destructive structural operations";
+                    color: Theme.text-muted;
+                    font-size: Theme.font-xs;
+                    font-family: Theme.font-mono;
+                }
+            }
+
+            if root.error-message != "" : AlertBanner {
+                text: root.error-message;
+                level: "error";
+            }
+
+            // Maintenance Section
+            PanelCard {
+                VerticalLayout {
+                    padding: 20px;
+                    spacing: 12px;
+
+                    Text {
+                        text: "🛠 TABLE MAINTENANCE";
+                        color: Theme.accent;
+                        font-size: Theme.font-sm;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+
+                    Text {
+                        text: "Generate realistic test datasets, fake names, emails, timestamps, and numbers.";
+                        color: Theme.text-muted;
+                        font-size: Theme.font-xs;
+                        font-family: Theme.font-mono;
+                    }
+
+                    HorizontalLayout {
+                        PrimaryButton {
+                            text: "⚡ Open Mock Data Generator";
+                            clicked => { root.navigate-mock-data(); }
+                        }
+                    }
+                }
+            }
+
+            // Danger Zone Section
+            Rectangle {
+                background: Theme.bg-panel;
+                border-color: Theme.danger;
+                border-width: 1px;
+                border-radius: Theme.radius;
+
+                VerticalLayout {
+                    padding: 20px;
+                    spacing: 16px;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: start;
+                        Text {
+                            text: "⚠ DANGER ZONE";
+                            color: Theme.danger;
+                            font-size: Theme.font-sm;
+                            font-weight: 700;
+                            font-family: Theme.font-mono;
+                        }
+                    }
+
+                    Text {
+                        text: "The following operations are destructive and immediately permanent. Make sure you have a backup.";
+                        color: Theme.text-muted;
+                        font-size: Theme.font-xs;
+                        font-family: Theme.font-mono;
+                    }
+
+                    // Empty / Truncate
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 2px;
+                            Text {
+                                text: "Empty the table (TRUNCATE)";
+                                color: Theme.foreground;
+                                font-size: Theme.font-sm;
+                                font-weight: 600;
+                                font-family: Theme.font-mono;
+                            }
+                            Text {
+                                text: "Deletes all records from the table while retaining its column definitions.";
+                                color: Theme.text-subtle;
+                                font-size: Theme.font-xs;
+                                font-family: Theme.font-mono;
+                            }
+                        }
+
+                        DangerButton {
+                            text: "Empty Table";
+                            clicked => { root.truncate-table(); }
+                        }
+                    }
+
+                    Rectangle {
+                        height: 1px;
+                        background: Theme.border;
+                    }
+
+                    // Drop Table
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 2px;
+                            Text {
+                                text: "Delete the table (DROP)";
+                                color: Theme.danger;
+                                font-size: Theme.font-sm;
+                                font-weight: 600;
+                                font-family: Theme.font-mono;
+                            }
+                            Text {
+                                text: "Permanently removes the table and all its data from the database.";
+                                color: Theme.text-subtle;
+                                font-size: Theme.font-xs;
+                                font-family: Theme.font-mono;
+                            }
+                        }
+
+                        DangerButton {
+                            text: "Drop Table";
+                            clicked => { root.drop-table(); }
+                        }
+                    }
+                }
+            }
+        }
+        Rectangle { }
+    }
+}

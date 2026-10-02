@@ -1,0 +1,679 @@
+import { Theme } from "theme.slint";
+import { TabButton } from "components/button.slint";
+import { ConfirmDialog } from "components/dialog.slint";
+
+import { LoginView } from "views/login.slint";
+import { TopBar } from "views/topbar.slint";
+import { Sidebar, DatabaseItem } from "views/sidebar.slint";
+import { ServerOverviewView, ProcessItem, DbSummaryItem } from "views/server_overview.slint";
+import { DbOverviewView, TableStatItem } from "views/db_overview.slint";
+import { TableDataView, TableRowData } from "views/table_data.slint";
+import { StructureViewView, ColumnInfoItem } from "views/structure_view.slint";
+import { SqlEditorView, SqlResultRow } from "views/sql_editor.slint";
+import { HistoryViewView, HistoryDisplayItem } from "views/history_view.slint";
+import { QueryBuilderView } from "views/query_builder.slint";
+import { InsertViewView, InsertFieldItem } from "views/insert_view.slint";
+import { OperationsViewView } from "views/operations_view.slint";
+import { MockDataViewView, MockColumnBlueprint } from "views/mock_data_view.slint";
+import { ExportViewView } from "views/export_view.slint";
+import { ImportViewView } from "views/import_view.slint";
+import { UserManagementView, UserItem } from "views/user_management.slint";
+import { PerformanceViewView } from "views/performance_view.slint";
+import { SlowLogViewView, SlowLogItem } from "views/slow_log_view.slint";
+import { CreateTableViewView, CreateTableColumnItem } from "views/create_table_view.slint";
+import { DiagramViewView, DiagramTableItem, RelationItem } from "views/diagram_view.slint";
+
+export { 
+    Theme,
+    DatabaseItem,
+    ProcessItem,
+    DbSummaryItem,
+    TableStatItem,
+    TableRowData,
+    ColumnInfoItem,
+    SqlResultRow,
+    HistoryDisplayItem,
+    InsertFieldItem,
+    MockColumnBlueprint,
+    UserItem,
+    SlowLogItem,
+    CreateTableColumnItem,
+    DiagramTableItem,
+    RelationItem
+}
+
+export component AppWindow inherits Window {
+    title: "MySQL GUI";
+    min-width: 960px;
+    min-height: 600px;
+    preferred-width: 1200px;
+    preferred-height: 720px;
+    background: Theme.bg-base;
+    default-font-family: Theme.font-mono;
+
+    // Authentication & State
+    in-out property <bool> is-logged-in: false;
+    in-out property <string> server-name: "localhost";
+    in-out property <string> selected-db: "";
+    in-out property <string> selected-table: "";
+    in-out property <string> active-view: "server_overview";
+
+    // Dialog state
+    in-out property <bool> dialog-open: false;
+    in-out property <string> dialog-title: "Confirm Action";
+    in-out property <string> dialog-message: "Are you sure?";
+    in-out property <string> dialog-action-type: "";
+    in-out property <string> dialog-target: "";
+
+    // Data models - Sidebar
+    in-out property <[DatabaseItem]> databases: [];
+
+    // Server Overview
+    in-out property <string> server-uptime: "0d 0h 0m";
+    in-out property <string> server-threads-connected: "0";
+    in-out property <string> server-threads-running: "0";
+    in-out property <string> server-total-queries: "0";
+    in-out property <string> server-slow-queries: "0";
+    in-out property <[DbSummaryItem]> server-databases: [];
+    in-out property <[ProcessItem]> server-processes: [];
+
+    // Database Overview
+    in-out property <string> db-total-tables: "0";
+    in-out property <string> db-total-rows: "0";
+    in-out property <string> db-total-size: "0 B";
+    in-out property <[TableStatItem]> db-tables: [];
+
+    // Table Data (Browse)
+    in-out property <int> table-total-rows: 0;
+    in-out property <int> table-current-page: 1;
+    in-out property <int> table-total-pages: 1;
+    in-out property <int> table-limit: 50;
+    in-out property <string> table-sort-col: "";
+    in-out property <string> table-sort-order: "ASC";
+    in-out property <bool> table-loading: false;
+    in-out property <string> table-error-message: "";
+    in-out property <[string]> table-columns: [];
+    in-out property <[TableRowData]> table-rows: [];
+
+    // Table Structure
+    in-out property <[ColumnInfoItem]> structure-columns: [];
+
+    // SQL Editor
+    in-out property <string> sql-query-text: "";
+    in-out property <bool> sql-loading: false;
+    in-out property <string> sql-message: "";
+    in-out property <string> sql-error-message: "";
+    in-out property <int> sql-execution-time-ms: 0;
+    in-out property <int> sql-affected-rows: -1;
+    in-out property <[string]> sql-result-columns: [];
+    in-out property <[SqlResultRow]> sql-result-rows: [];
+
+    // History
+    in-out property <[HistoryDisplayItem]> history-items: [];
+
+    // Query Builder
+    in-out property <[string]> builder-tables: [];
+    in-out property <[string]> builder-columns: [];
+    in-out property <string> builder-generated-sql: "";
+
+    // Insert Row
+    in-out property <[InsertFieldItem]> insert-fields: [];
+    in-out property <bool> insert-loading: false;
+    in-out property <string> insert-error-message: "";
+    in-out property <string> insert-success-message: "";
+
+    // Mock Data
+    in-out property <string> mock-count-str: "50";
+    in-out property <[MockColumnBlueprint]> mock-blueprint: [];
+    in-out property <bool> mock-loading: false;
+    in-out property <string> mock-message: "";
+    in-out property <string> mock-error-message: "";
+
+    // Import
+    in-out property <string> import-sql-content: "";
+    in-out property <bool> import-loading: false;
+    in-out property <string> import-message: "";
+    in-out property <string> import-error-message: "";
+
+    // User Management
+    in-out property <[UserItem]> user-items: [];
+    in-out property <string> user-note: "";
+    in-out property <string> user-error-message: "";
+
+    // Performance Monitor
+    in-out property <string> perf-questions: "0";
+    in-out property <string> perf-threads-connected: "0";
+    in-out property <string> perf-threads-running: "0";
+    in-out property <string> perf-bytes-received: "0 B";
+    in-out property <string> perf-bytes-sent: "0 B";
+    in-out property <string> perf-innodb-buffer: "0 / 0 pages";
+    in-out property <string> perf-slow-queries: "0";
+    in-out property <bool> perf-is-paused: false;
+
+    // Slow Query Log
+    in-out property <[SlowLogItem]> slow-log-items: [];
+    in-out property <string> slow-log-error-message: "";
+
+    // Create Table
+    in-out property <string> create-table-name: "";
+    in-out property <[CreateTableColumnItem]> create-table-columns: [];
+    in-out property <bool> create-table-loading: false;
+    in-out property <string> create-table-error-message: "";
+
+    // ER Diagram
+    in-out property <[DiagramTableItem]> diagram-tables: [];
+    in-out property <[RelationItem]> diagram-relations: [];
+
+    // Callbacks from UI to Rust
+    callback request-login(string, string, string, string);
+    callback request-logout();
+    callback toggle-theme();
+
+    // Navigation callbacks
+    callback navigate-view(string);
+    callback select-database(string);
+    callback toggle-db-expanded(int);
+    callback select-table(string, string);
+    callback select-diagram(string);
+    callback select-object(string, string, string);
+    callback open-create-db();
+    callback submit-create-db(string);
+
+    // Dialog confirmation callbacks
+    callback confirm-dialog-action();
+    callback cancel-dialog-action();
+
+    // Specific view callbacks
+    callback refresh-server-overview();
+    callback refresh-db-overview();
+    callback refresh-table-data();
+    callback refresh-structure();
+    callback run-sql-query(string);
+    callback clear-sql-query();
+    callback prev-table-page();
+    callback next-table-page();
+    callback set-table-limit(int);
+    callback sort-table-column(string);
+    callback delete-table-row(int);
+    callback open-create-table();
+    callback submit-create-table();
+    callback add-create-column();
+    callback remove-create-column(int);
+    callback update-create-col-name(int, string);
+    callback update-create-col-type(int, string);
+    callback update-create-col-length(int, string);
+    callback update-create-col-null(int, bool);
+    callback update-create-col-primary(int, bool);
+    callback update-create-col-auto(int, bool);
+
+    callback update-insert-field(int, string);
+    callback submit-insert-row();
+
+    callback request-truncate-table();
+    callback request-drop-table(string);
+    callback request-drop-db(string);
+
+    callback update-mock-type(int, string);
+    callback submit-mock-data();
+
+    callback set-export-format(string);
+    callback toggle-export-structure(bool);
+    callback toggle-export-data(bool);
+    callback submit-export();
+
+    callback choose-import-file();
+    callback submit-import(string);
+
+    callback refresh-users();
+    callback toggle-performance-pause();
+    callback refresh-performance();
+    callback refresh-slow-log();
+
+    callback history-run-query(string);
+    callback history-toggle-fav(int);
+    callback history-delete(int);
+    callback history-clear();
+
+    callback builder-select-table(string);
+    callback builder-generate();
+
+    // Main Viewport Container filling 100% of Window
+    main_viewport := Rectangle {
+        width: root.width;
+        height: root.height;
+        background: Theme.bg-base;
+
+        // LOGIN SCREEN
+        if !root.is-logged-in : login_view := LoginView {
+            width: 100%;
+            height: 100%;
+            connect(h, p, u, pwd) => {
+                root.request-login(h, p, u, pwd);
+            }
+        }
+
+        // MAIN DASHBOARD WORKSPACE
+        if root.is-logged-in : Rectangle {
+            width: root.width;
+            height: root.height;
+
+            VerticalLayout {
+                padding: 0px;
+                spacing: 0px;
+
+                top_bar := TopBar {
+                    vertical-stretch: 0;
+                    server-name: root.server-name;
+                    selected-db: root.selected-db;
+                    selected-table: root.selected-table;
+
+                    navigate-server => {
+                        root.selected-db = "";
+                        root.selected-table = "";
+                        root.active-view = "server_overview";
+                        root.navigate-view("server_overview");
+                    }
+                    navigate-db(db) => {
+                        root.selected-table = "";
+                        root.active-view = "db_overview";
+                        root.select-database(db);
+                    }
+                    navigate-table(db, tbl) => {
+                        root.select-table(db, tbl);
+                    }
+                    toggle-theme => {
+                        Theme.is-dark = !Theme.is-dark;
+                        root.toggle-theme();
+                    }
+                    logout => {
+                        root.request-logout();
+                    }
+                }
+
+                HorizontalLayout {
+                    padding: 0px;
+                    spacing: 0px;
+                    vertical-stretch: 1;
+
+                    sidebar := Sidebar {
+                        vertical-stretch: 1;
+                        databases: root.databases;
+                selected-db: root.selected-db;
+                selected-table: root.selected-table;
+                current-view: root.active-view;
+
+                select-server => {
+                    root.selected-db = "";
+                    root.selected-table = "";
+                    root.active-view = "server_overview";
+                    root.navigate-view("server_overview");
+                }
+                select-users => {
+                    root.active-view = "users";
+                    root.navigate-view("users");
+                }
+                select-performance => {
+                    root.active-view = "performance";
+                    root.navigate-view("performance");
+                }
+                select-slow-log => {
+                    root.active-view = "slow_log";
+                    root.navigate-view("slow_log");
+                }
+                select-db(db) => {
+                    root.selected-table = "";
+                    root.active-view = "db_overview";
+                    root.select-database(db);
+                }
+                toggle-db(idx) => {
+                    root.toggle-db-expanded(idx);
+                }
+                select-table(db, tbl) => {
+                    root.select-table(db, tbl);
+                }
+                select-object(db, obj, otype) => {
+                    root.select-object(db, obj, otype);
+                }
+                select-diagram(db) => {
+                    root.selected-db = db;
+                    root.active-view = "diagram";
+                    root.select-diagram(db);
+                }
+                create-db(name) => {
+                    root.submit-create-db(name);
+                }
+                toggle-create-db => {
+                    self.show-create-db = !self.show-create-db;
+                }
+            }
+
+            // Right Main Work Area
+            VerticalLayout {
+                horizontal-stretch: 1;
+                vertical-stretch: 1;
+                padding: 0px;
+                spacing: 0px;
+
+                // Dynamic Navigation Tabs
+                if root.selected-db != "" : Rectangle {
+                    vertical-stretch: 0;
+                    height: 38px;
+                    background: Theme.bg-panel;
+                    border-color: Theme.border;
+                    border-width: 1px;
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        spacing: 0px;
+                        alignment: start;
+
+                        if root.selected-table != "" : HorizontalLayout {
+                            TabButton {
+                                text: "Browse";
+                                active: root.active-view == "browse";
+                                clicked => { root.active-view = "browse"; root.navigate-view("browse"); }
+                            }
+                            TabButton {
+                                text: "Structure";
+                                active: root.active-view == "structure";
+                                clicked => { root.active-view = "structure"; root.navigate-view("structure"); }
+                            }
+                            TabButton {
+                                text: "SQL";
+                                active: root.active-view == "sql";
+                                clicked => { root.active-view = "sql"; root.navigate-view("sql"); }
+                            }
+                            TabButton {
+                                text: "History";
+                                active: root.active-view == "history";
+                                clicked => { root.active-view = "history"; root.navigate-view("history"); }
+                            }
+                            TabButton {
+                                text: "Query Builder";
+                                active: root.active-view == "query_builder";
+                                clicked => { root.active-view = "query_builder"; root.navigate-view("query_builder"); }
+                            }
+                            TabButton {
+                                text: "Insert";
+                                active: root.active-view == "insert";
+                                clicked => { root.active-view = "insert"; root.navigate-view("insert"); }
+                            }
+                            TabButton {
+                                text: "Operations";
+                                active: root.active-view == "operations";
+                                clicked => { root.active-view = "operations"; root.navigate-view("operations"); }
+                            }
+                            TabButton {
+                                text: "Mock Data";
+                                active: root.active-view == "mock_data";
+                                clicked => { root.active-view = "mock_data"; root.navigate-view("mock_data"); }
+                            }
+                        }
+
+                        if root.selected-table == "" : HorizontalLayout {
+                            TabButton {
+                                text: "Structure";
+                                active: root.active-view == "db_overview";
+                                clicked => { root.active-view = "db_overview"; root.navigate-view("db_overview"); }
+                            }
+                            TabButton {
+                                text: "SQL";
+                                active: root.active-view == "sql";
+                                clicked => { root.active-view = "sql"; root.navigate-view("sql"); }
+                            }
+                            TabButton {
+                                text: "Import";
+                                active: root.active-view == "import";
+                                clicked => { root.active-view = "import"; root.navigate-view("import"); }
+                            }
+                            TabButton {
+                                text: "Export";
+                                active: root.active-view == "export";
+                                clicked => { root.active-view = "export"; root.navigate-view("export"); }
+                            }
+                        }
+                    }
+                }
+
+                // Active View Content
+                Rectangle {
+                    vertical-stretch: 1;
+                    background: Theme.bg-base;
+
+                    if root.active-view == "server_overview" : server_view := ServerOverviewView {
+                        uptime-str: root.server-uptime;
+                        threads-connected: root.server-threads-connected;
+                        threads-running: root.server-threads-running;
+                        total-queries: root.server-total-queries;
+                        slow-queries: root.server-slow-queries;
+                        databases: root.server-databases;
+                        processes: root.server-processes;
+                        select-db(db) => {
+                            root.select-database(db);
+                        }
+                        drop-db(db) => {
+                            root.request-drop-db(db);
+                        }
+                        refresh => {
+                            root.refresh-server-overview();
+                        }
+                    }
+
+                    if root.active-view == "db_overview" : db_view := DbOverviewView {
+                        db-name: root.selected-db;
+                        total-tables: root.db-total-tables;
+                        total-rows: root.db-total-rows;
+                        total-size: root.db-total-size;
+                        tables: root.db-tables;
+                        select-table(tbl) => {
+                            root.select-table(root.selected-db, tbl);
+                        }
+                        view-structure(tbl) => {
+                            root.selected-table = tbl;
+                            root.active-view = "structure";
+                            root.refresh-structure();
+                        }
+                        create-table => {
+                            root.open-create-table();
+                        }
+                        drop-table(tbl) => {
+                            root.request-drop-table(tbl);
+                        }
+                        refresh => {
+                            root.refresh-db-overview();
+                        }
+                    }
+
+                    if root.active-view == "browse" : table_data_view := TableDataView {
+                        db-name: root.selected-db;
+                        table-name: root.selected-table;
+                        total-rows: root.table-total-rows;
+                        current-page: root.table-current-page;
+                        total-pages: root.table-total-pages;
+                        limit: root.table-limit;
+                        sort-col: root.table-sort-col;
+                        sort-order: root.table-sort-order;
+                        loading: root.table-loading;
+                        error-message: root.table-error-message;
+                        columns: root.table-columns;
+                        rows: root.table-rows;
+
+                        prev-page => { root.prev-table-page(); }
+                        next-page => { root.next-table-page(); }
+                        set-limit(l) => { root.set-table-limit(l); }
+                        sort(col) => { root.sort-table-column(col); }
+                        delete-row(idx) => { root.delete-table-row(idx); }
+                        refresh => { root.refresh-table-data(); }
+                        navigate-insert => { root.active-view = "insert"; root.navigate-view("insert"); }
+                    }
+
+                    if root.active-view == "structure" : structure_view := StructureViewView {
+                        db-name: root.selected-db;
+                        table-name: root.selected-table;
+                        columns: root.structure-columns;
+                        refresh => { root.refresh-structure(); }
+                    }
+
+                    if root.active-view == "sql" : sql_view := SqlEditorView {
+                        db-name: root.selected-db;
+                        query <=> root.sql-query-text;
+                        loading: root.sql-loading;
+                        message: root.sql-message;
+                        error-message: root.sql-error-message;
+                        execution-time-ms: root.sql-execution-time-ms;
+                        affected-rows: root.sql-affected-rows;
+                        result-columns: root.sql-result-columns;
+                        result-rows: root.sql-result-rows;
+                        run-query(q) => { root.run-sql-query(q); }
+                        clear-query => { root.clear-sql-query(); }
+                    }
+
+                    if root.active-view == "history" : history_view := HistoryViewView {
+                        history-items: root.history-items;
+                        run-query(q) => {
+                            root.active-view = "sql";
+                            root.history-run-query(q);
+                        }
+                        toggle-favorite(idx) => { root.history-toggle-fav(idx); }
+                        delete-item(idx) => { root.history-delete(idx); }
+                        clear-all => { root.history-clear(); }
+                    }
+
+                    if root.active-view == "query_builder" : builder_view := QueryBuilderView {
+                        db-name: root.selected-db;
+                        selected-table: root.selected-table;
+                        tables: root.builder-tables;
+                        available-columns: root.builder-columns;
+                        generated-sql <=> root.builder-generated-sql;
+                        select-table(tbl) => { root.builder-select-table(tbl); }
+                        run-query(q) => {
+                            root.active-view = "sql";
+                            root.history-run-query(q);
+                        }
+                        generate => { root.builder-generate(); }
+                    }
+
+                    if root.active-view == "insert" : insert_view := InsertViewView {
+                        db-name: root.selected-db;
+                        table-name: root.selected-table;
+                        fields: root.insert-fields;
+                        loading: root.insert-loading;
+                        error-message: root.insert-error-message;
+                        success-message: root.insert-success-message;
+                        update-field(idx, val) => { root.update-insert-field(idx, val); }
+                        save-row => { root.submit-insert-row(); }
+                        cancel => { root.active-view = "browse"; root.navigate-view("browse"); }
+                    }
+
+                    if root.active-view == "operations" : ops_view := OperationsViewView {
+                        db-name: root.selected-db;
+                        table-name: root.selected-table;
+                        navigate-mock-data => { root.active-view = "mock_data"; root.navigate-view("mock_data"); }
+                        truncate-table => { root.request-truncate-table(); }
+                        drop-table => { root.request-drop-table(root.selected-table); }
+                    }
+
+                    if root.active-view == "mock_data" : mock_view := MockDataViewView {
+                        db-name: root.selected-db;
+                        table-name: root.selected-table;
+                        count-str <=> root.mock-count-str;
+                        blueprint: root.mock-blueprint;
+                        loading: root.mock-loading;
+                        message: root.mock-message;
+                        error-message: root.mock-error-message;
+                        update-type(idx, t) => { root.update-mock-type(idx, t); }
+                        generate => { root.submit-mock-data(); }
+                        cancel => { root.active-view = "browse"; root.navigate-view("browse"); }
+                    }
+
+                    if root.active-view == "export" : export_view := ExportViewView {
+                        db-name: root.selected-db;
+                        set-format(f) => { root.set-export-format(f); }
+                        toggle-structure(c) => { root.toggle-export-structure(c); }
+                        toggle-data(c) => { root.toggle-export-data(c); }
+                        export-database => { root.submit-export(); }
+                    }
+
+                    if root.active-view == "import" : import_view := ImportViewView {
+                        db-name: root.selected-db;
+                        sql-content <=> root.import-sql-content;
+                        loading: root.import-loading;
+                        message: root.import-message;
+                        error-message: root.import-error-message;
+                        choose-file => { root.choose-import-file(); }
+                        run-import(sql) => { root.submit-import(sql); }
+                    }
+
+                    if root.active-view == "users" : users_view := UserManagementView {
+                        users: root.user-items;
+                        note: root.user-note;
+                        error-message: root.user-error-message;
+                        refresh => { root.refresh-users(); }
+                    }
+
+                    if root.active-view == "performance" : perf_view := PerformanceViewView {
+                        questions: root.perf-questions;
+                        threads-connected: root.perf-threads-connected;
+                        threads-running: root.perf-threads-running;
+                        bytes-received: root.perf-bytes-received;
+                        bytes-sent: root.perf-bytes-sent;
+                        innodb-buffer: root.perf-innodb-buffer;
+                        slow-queries: root.perf-slow-queries;
+                        is-paused: root.perf-is-paused;
+                        toggle-pause => { root.toggle-performance-pause(); }
+                        refresh => { root.refresh-performance(); }
+                    }
+
+                    if root.active-view == "slow_log" : slow_view := SlowLogViewView {
+                        logs: root.slow-log-items;
+                        error-message: root.slow-log-error-message;
+                        refresh => { root.refresh-slow-log(); }
+                    }
+
+                    if root.active-view == "create_table" : create_table_view := CreateTableViewView {
+                        db-name: root.selected-db;
+                        table-name <=> root.create-table-name;
+                        columns: root.create-table-columns;
+                        loading: root.create-table-loading;
+                        error-message: root.create-table-error-message;
+                        add-column => { root.add-create-column(); }
+                        remove-column(idx) => { root.remove-create-column(idx); }
+                        update-column-name(idx, val) => { root.update-create-col-name(idx, val); }
+                        update-column-type(idx, val) => { root.update-create-col-type(idx, val); }
+                        update-column-length(idx, val) => { root.update-create-col-length(idx, val); }
+                        update-column-null(idx, val) => { root.update-create-col-null(idx, val); }
+                        update-column-primary(idx, val) => { root.update-create-col-primary(idx, val); }
+                        update-column-auto(idx, val) => { root.update-create-col-auto(idx, val); }
+                        save-table => { root.submit-create-table(); }
+                        back => { root.active-view = "db_overview"; root.navigate-view("db_overview"); }
+                    }
+
+                    if root.active-view == "diagram" : diagram_view := DiagramViewView {
+                        db-name: root.selected-db;
+                        tables: root.diagram-tables;
+                        relations: root.diagram-relations;
+                        refresh => { root.select-diagram(root.selected-db); }
+                        select-table(tbl) => { root.select-table(root.selected-db, tbl); }
+                    }
+                }
+            }
+        }
+    }
+}
+
+    // Modal Confirmation Dialog Overlay
+    if root.dialog-open : ConfirmDialog {
+        is-open: root.dialog-open;
+        title: root.dialog-title;
+        message: root.dialog-message;
+        confirm-text: "Proceed";
+
+        confirmed => {
+            root.confirm-dialog-action();
+        }
+        cancelled => {
+            root.cancel-dialog-action();
+        }
+    }
+}
+}

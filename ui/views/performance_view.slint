@@ -1,0 +1,151 @@
+import { Theme } from "../theme.slint";
+import { StatCard, PanelCard } from "../components/card.slint";
+import { SecondaryButton } from "../components/button.slint";
+
+export component PerformanceViewView inherits Rectangle {
+    in-out property <string> questions: "0";
+    in-out property <string> threads-connected: "0";
+    in-out property <string> threads-running: "0";
+    in-out property <string> bytes-received: "0 B";
+    in-out property <string> bytes-sent: "0 B";
+    in-out property <string> innodb-buffer: "0 / 0 pages";
+    in-out property <string> slow-queries: "0";
+    in-out property <bool> is-paused: false;
+
+    callback toggle-pause();
+    callback refresh();
+
+    background: Theme.bg-base;
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+        content-height: content.preferred-height;
+
+        content := VerticalLayout {
+            padding: 20px;
+            spacing: 12px;
+
+            HorizontalLayout {
+                alignment: space-between;
+
+                VerticalLayout {
+                    spacing: 4px;
+                    Text {
+                        text: "PERFORMANCE MONITOR";
+                        color: Theme.accent;
+                        font-size: Theme.font-lg;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+                    Text {
+                        text: "Real-time engine throughput, buffer usage, and network traffic";
+                        color: Theme.text-muted;
+                        font-size: Theme.font-xs;
+                        font-family: Theme.font-mono;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 10px;
+
+                    SecondaryButton {
+                        text: root.is-paused ? "▶ Resume Polling" : "⏸ Pause Polling";
+                        clicked => { root.toggle-pause(); }
+                    }
+
+                    SecondaryButton {
+                        text: "↻ Refresh Now";
+                        clicked => { root.refresh(); }
+                    }
+                }
+            }
+
+            // Stat Cards Grid
+            HorizontalLayout {
+                spacing: 12px;
+
+                StatCard {
+                    label: "QUERIES EXECUTED";
+                    value: root.questions;
+                    subtext: "Total questions";
+                    value-color: Theme.accent;
+                }
+
+                StatCard {
+                    label: "ACTIVE CONNECTIONS";
+                    value: root.threads-connected;
+                    subtext: "Threads connected";
+                    value-color: Theme.info;
+                }
+
+                StatCard {
+                    label: "RUNNING THREADS";
+                    value: root.threads-running;
+                    subtext: "Active CPU workers";
+                    value-color: Theme.accent;
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 12px;
+
+                StatCard {
+                    label: "NETWORK RECEIVED";
+                    value: root.bytes-received;
+                    subtext: "Inbound payload";
+                    value-color: Theme.foreground;
+                }
+
+                StatCard {
+                    label: "NETWORK SENT";
+                    value: root.bytes-sent;
+                    subtext: "Outbound payload";
+                    value-color: Theme.foreground;
+                }
+
+                StatCard {
+                    label: "SLOW QUERIES";
+                    value: root.slow-queries;
+                    subtext: "Exceeded slow threshold";
+                    value-color: root.slow-queries == "0" ? Theme.success : Theme.danger;
+                }
+            }
+
+            // InnoDB Buffer Pool Panel
+            PanelCard {
+                VerticalLayout {
+                    padding: 20px;
+                    spacing: 12px;
+
+                    Text {
+                        text: "INNODB BUFFER POOL UTILIZATION";
+                        color: Theme.accent;
+                        font-size: Theme.font-sm;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Text {
+                            text: "Pages Status:";
+                            color: Theme.text-muted;
+                            font-size: Theme.font-sm;
+                            font-family: Theme.font-mono;
+                        }
+
+                        Text {
+                            text: root.innodb-buffer;
+                            color: Theme.foreground;
+                            font-size: Theme.font-sm;
+                            font-weight: 600;
+                            font-family: Theme.font-mono;
+                        }
+                    }
+                }
+            }
+        }
+        Rectangle { }
+    }
+}

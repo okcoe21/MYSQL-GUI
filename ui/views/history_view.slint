@@ -1,0 +1,175 @@
+import { Theme } from "../theme.slint";
+import { PanelCard } from "../components/card.slint";
+import { PrimaryButton, SecondaryButton, DangerButton } from "../components/button.slint";
+
+export struct HistoryDisplayItem {
+    query: string,
+    time_str: string,
+    database: string,
+    is_favorite: bool,
+}
+
+export component HistoryViewView inherits Rectangle {
+    in-out property <[HistoryDisplayItem]> history-items: [];
+
+    callback run-query(string);
+    callback toggle-favorite(int);
+    callback delete-item(int);
+    callback clear-all();
+
+    background: Theme.bg-base;
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+        content-height: content.preferred-height;
+
+        content := VerticalLayout {
+            padding: 20px;
+            spacing: 16px;
+
+            HorizontalLayout {
+                alignment: space-between;
+
+                VerticalLayout {
+                    spacing: 4px;
+                    Text {
+                        text: "QUERY EXECUTION HISTORY";
+                        color: Theme.accent;
+                        font-size: Theme.font-lg;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+                    Text {
+                        text: "Previous SQL commands executed across database connections (" + root.history-items.length + " logged)";
+                        color: Theme.text-muted;
+                        font-size: Theme.font-xs;
+                        font-family: Theme.font-mono;
+                    }
+                }
+
+                if root.history-items.length > 0 : DangerButton {
+                    text: "Clear All History";
+                    height: 30px;
+                    clicked => { root.clear-all(); }
+                }
+            }
+
+            if root.history-items.length == 0 : Rectangle {
+                height: 160px;
+                Text {
+                    text: "No query history yet. Queries run in the SQL console will appear here.";
+                    color: Theme.text-muted;
+                    font-size: Theme.font-sm;
+                    font-family: Theme.font-mono;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+
+            VerticalLayout {
+                spacing: 8px;
+
+                for item[i] in root.history-items: PanelCard {
+                    VerticalLayout {
+                        padding: 12px;
+                        spacing: 8px;
+
+                        HorizontalLayout {
+                            alignment: space-between;
+
+                            HorizontalLayout {
+                                spacing: 8px;
+
+                                Text {
+                                    text: "🕒 " + item.time_str;
+                                    color: Theme.text-muted;
+                                    font-size: Theme.font-xs;
+                                    font-family: Theme.font-mono;
+                                }
+
+                                if item.database != "" : Text {
+                                    text: "• DB: " + item.database;
+                                    color: Theme.accent;
+                                    font-size: Theme.font-xs;
+                                    font-family: Theme.font-mono;
+                                }
+                            }
+
+                            HorizontalLayout {
+                                spacing: 6px;
+
+                                fav_btn := Rectangle {
+                                    width: 28px;
+                                    height: 24px;
+                                    border-radius: Theme.radius;
+                                    background: item.is_favorite ? Theme.accent-subtle : transparent;
+
+                                    Text {
+                                        text: item.is_favorite ? "★" : "☆";
+                                        color: item.is_favorite ? Theme.accent : Theme.text-muted;
+                                        font-size: Theme.font-sm;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+
+                                    TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => { root.toggle-favorite(i); }
+                                    }
+                                }
+
+                                del_btn := Rectangle {
+                                    width: 28px;
+                                    height: 24px;
+                                    border-radius: Theme.radius;
+                                    background: del_touch.has-hover ? Theme.danger-subtle : transparent;
+
+                                    Text {
+                                        text: "✕";
+                                        color: del_touch.has-hover ? Theme.danger : Theme.text-muted;
+                                        font-size: Theme.font-xs;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+
+                                    del_touch := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => { root.delete-item(i); }
+                                    }
+                                }
+
+                                PrimaryButton {
+                                    text: "▶ Re-run";
+                                    custom-font-size: Theme.font-xs;
+                                    height: 26px;
+                                    clicked => { root.run-query(item.query); }
+                                }
+                            }
+                        }
+
+                        // SQL Code Block
+                        Rectangle {
+                            background: Theme.bg-input;
+                            border-color: Theme.border;
+                            border-width: 1px;
+                            border-radius: Theme.radius;
+
+                            HorizontalLayout {
+                                padding: 8px;
+                                Text {
+                                    text: item.query;
+                                    color: Theme.foreground;
+                                    font-size: Theme.font-xs;
+                                    font-family: Theme.font-mono;
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Rectangle { }
+    }
+}

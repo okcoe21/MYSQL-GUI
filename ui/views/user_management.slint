@@ -1,0 +1,149 @@
+import { Theme } from "../theme.slint";
+import { PanelCard, AlertBanner } from "../components/card.slint";
+import { SecondaryButton } from "../components/button.slint";
+
+export struct UserItem {
+    user: string,
+    host: string,
+    account_locked: string,
+}
+
+export component UserManagementView inherits Rectangle {
+    in-out property <[UserItem]> users: [];
+    in-out property <string> note: "";
+    in-out property <string> error-message: "";
+
+    callback refresh();
+
+    background: Theme.bg-base;
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+        content-height: content.preferred-height;
+
+        content := VerticalLayout {
+            padding: 20px;
+            spacing: 16px;
+
+            HorizontalLayout {
+                alignment: space-between;
+
+                VerticalLayout {
+                    spacing: 4px;
+                    Text {
+                        text: "USER MANAGEMENT";
+                        color: Theme.accent;
+                        font-size: Theme.font-lg;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+                    Text {
+                        text: "MySQL Authentication & Account Status (" + root.users.length + " users)";
+                        color: Theme.text-muted;
+                        font-size: Theme.font-xs;
+                        font-family: Theme.font-mono;
+                    }
+                }
+
+                SecondaryButton {
+                    text: "↻ Refresh Users";
+                    clicked => { root.refresh(); }
+                }
+            }
+
+            if root.note != "" : AlertBanner {
+                text: root.note;
+                level: "info";
+            }
+
+            if root.error-message != "" : AlertBanner {
+                text: root.error-message;
+                level: "error";
+            }
+
+            PanelCard {
+                VerticalLayout {
+                    padding: 0px;
+
+                    // Table Header
+                    Rectangle {
+                        height: 36px;
+                        background: Theme.bg-header;
+                        border-color: Theme.border;
+                        border-width: 1px;
+
+                        HorizontalLayout {
+                            padding-left: 16px;
+                            padding-right: 16px;
+                            spacing: 16px;
+
+                            Text { text: "USER"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 700; width: 220px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "HOST"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 700; width: 220px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "ACCOUNT STATUS"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 700; vertical-alignment: center; font-family: Theme.font-mono; }
+                        }
+                    }
+
+                    // User Rows
+                    VerticalLayout {
+                        spacing: 1px;
+
+                        for u[i] in root.users: Rectangle {
+                            height: 36px;
+                            background: Math.mod(i, 2) == 0 ? Theme.bg-panel : Theme.bg-base;
+                            border-color: Theme.border;
+                            border-width: 1px;
+
+                            HorizontalLayout {
+                                padding-left: 16px;
+                                padding-right: 16px;
+                                spacing: 16px;
+
+                                Text {
+                                    text: "👤 " + u.user;
+                                    color: Theme.foreground;
+                                    font-size: Theme.font-xs;
+                                    font-weight: 600;
+                                    width: 220px;
+                                    vertical-alignment: center;
+                                    font-family: Theme.font-mono;
+                                }
+
+                                Text {
+                                    text: u.host;
+                                    color: Theme.text-muted;
+                                    font-size: Theme.font-xs;
+                                    width: 220px;
+                                    vertical-alignment: center;
+                                    font-family: Theme.font-mono;
+                                }
+
+                                HorizontalLayout {
+                                    spacing: 6px;
+
+                                    Rectangle {
+                                        width: 8px;
+                                        height: 8px;
+                                        border-radius: 4px;
+                                        background: u.account_locked == "Y" ? Theme.danger : Theme.success;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+
+                                    Text {
+                                        text: u.account_locked == "Y" ? "Locked" : "Active";
+                                        color: u.account_locked == "Y" ? Theme.danger : Theme.success;
+                                        font-size: Theme.font-xs;
+                                        font-weight: 600;
+                                        font-family: Theme.font-mono;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Rectangle { }
+    }
+}

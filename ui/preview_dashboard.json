@@ -1,0 +1,36 @@
+{
+  "is-logged-in": true,
+  "server-name": "localhost:3306",
+  "active-view": "server_overview",
+  "server-uptime": "2d 14h 32m",
+  "server-threads-connected": "4",
+  "server-threads-running": "1",
+  "server-total-queries": "1,284",
+  "server-slow-queries": "0",
+  "databases": [
+    {
+      "name": "ecommerce_prod",
+      "expanded": true,
+      "tables": ["users", "orders", "order_items", "products", "inventory"],
+      "views": ["v_monthly_revenue"],
+      "procedures": ["sp_calculate_discounts"],
+      "functions": []
+    },
+    {
+      "name": "analytics_warehouse",
+      "expanded": false,
+      "tables": ["daily_events", "user_sessions", "attribution_log"],
+      "views": [],
+      "procedures": [],
+      "functions": []
+    },
+    {
+      "name": "mysql",
+      "expanded": false,
+      "tables": ["user", "db", "tables_priv", "columns_priv"],
+      "views": [],
+      "procedures": [],
+      "functions": []
+    }
+  ]
+}

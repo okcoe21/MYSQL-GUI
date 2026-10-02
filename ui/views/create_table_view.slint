@@ -1,0 +1,236 @@
+import { Theme } from "../theme.slint";
+import { PanelCard, AlertBanner } from "../components/card.slint";
+import { PrimaryButton, SecondaryButton, DangerButton } from "../components/button.slint";
+import { TextInputBox, Checkbox } from "../components/input.slint";
+
+export struct CreateTableColumnItem {
+    name: string,
+    col_type: string,
+    length: string,
+    is_null: bool,
+    is_primary: bool,
+    is_auto_increment: bool,
+}
+
+export component CreateTableViewView inherits Rectangle {
+    in-out property <string> db-name: "";
+    in-out property <string> table-name: "";
+    in-out property <[CreateTableColumnItem]> columns: [];
+    in-out property <bool> loading: false;
+    in-out property <string> error-message: "";
+
+    callback add-column();
+    callback remove-column(int);
+    callback update-column-name(int, string);
+    callback update-column-type(int, string);
+    callback update-column-length(int, string);
+    callback update-column-null(int, bool);
+    callback update-column-primary(int, bool);
+    callback update-column-auto(int, bool);
+    callback save-table();
+    callback back();
+
+    background: Theme.bg-base;
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+        content-height: content.preferred-height;
+
+        content := VerticalLayout {
+            padding: 20px;
+            spacing: 16px;
+
+            HorizontalLayout {
+                alignment: space-between;
+
+                VerticalLayout {
+                    spacing: 4px;
+                    Text {
+                        text: "CREATE TABLE IN: " + root.db-name;
+                        color: Theme.accent;
+                        font-size: Theme.font-lg;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+                    Text {
+                        text: "Define table structure, primary keys, and data types";
+                        color: Theme.text-muted;
+                        font-size: Theme.font-xs;
+                        font-family: Theme.font-mono;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 8px;
+
+                    SecondaryButton {
+                        text: "◀ Back";
+                        clicked => { root.back(); }
+                    }
+
+                    PrimaryButton {
+                        text: "💾 Create Table";
+                        loading: root.loading;
+                        enabled: !root.loading && root.table-name != "";
+                        clicked => { root.save-table(); }
+                    }
+                }
+            }
+
+            if root.error-message != "" : AlertBanner {
+                text: root.error-message;
+                level: "error";
+            }
+
+            // Table Name Input
+            PanelCard {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 8px;
+
+                    Text {
+                        text: "TABLE NAME";
+                        color: Theme.accent;
+                        font-size: Theme.font-xs;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+
+                    TextInputBox {
+                        text <=> root.table-name;
+                        placeholder: "e.g. users, products, orders...";
+                        width: 320px;
+                    }
+                }
+            }
+
+            // Columns Definition Panel
+            PanelCard {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        Text {
+                            text: "COLUMNS SPECIFICATION";
+                            color: Theme.accent;
+                            font-size: Theme.font-xs;
+                            font-weight: 700;
+                            font-family: Theme.font-mono;
+                            vertical-alignment: center;
+                        }
+
+                        PrimaryButton {
+                            text: "+ Add Column";
+                            custom-font-size: Theme.font-xs;
+                            height: 28px;
+                            clicked => { root.add-column(); }
+                        }
+                    }
+
+                    // Column Table Header
+                    Rectangle {
+                        height: 32px;
+                        background: Theme.bg-header;
+                        border-color: Theme.border;
+                        border-width: 1px;
+
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            spacing: 10px;
+
+                            Text { text: "COLUMN NAME"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; width: 180px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "TYPE (INT, VARCHAR, TEXT...)"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; width: 150px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "LENGTH"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; width: 80px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "NULLABLE"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; width: 80px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "PRIMARY"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; width: 80px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "AUTO_INC"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; width: 80px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: ""; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; vertical-alignment: center; font-family: Theme.font-mono; }
+                        }
+                    }
+
+                    // Columns Rows
+                    VerticalLayout {
+                        spacing: 6px;
+
+                        for col[i] in root.columns: Rectangle {
+                            height: 42px;
+                            background: Theme.bg-panel;
+                            border-color: Theme.border;
+                            border-width: 1px;
+
+                            HorizontalLayout {
+                                padding-left: 12px;
+                                padding-right: 12px;
+                                spacing: 10px;
+
+                                TextInputBox {
+                                    text: col.name;
+                                    placeholder: "col_name";
+                                    width: 180px;
+                                    height: 30px;
+                                    edited(val) => { root.update-column-name(i, val); }
+                                }
+
+                                TextInputBox {
+                                    text: col.col_type;
+                                    placeholder: "VARCHAR";
+                                    width: 150px;
+                                    height: 30px;
+                                    edited(val) => { root.update-column-type(i, val); }
+                                }
+
+                                TextInputBox {
+                                    text: col.length;
+                                    placeholder: "255";
+                                    width: 80px;
+                                    height: 30px;
+                                    edited(val) => { root.update-column-length(i, val); }
+                                }
+
+                                HorizontalLayout {
+                                    width: 80px;
+                                    Checkbox {
+                                        checked: col.is_null;
+                                        toggled(c) => { root.update-column-null(i, c); }
+                                    }
+                                }
+
+                                HorizontalLayout {
+                                    width: 80px;
+                                    Checkbox {
+                                        checked: col.is_primary;
+                                        toggled(c) => { root.update-column-primary(i, c); }
+                                    }
+                                }
+
+                                HorizontalLayout {
+                                    width: 80px;
+                                    Checkbox {
+                                        checked: col.is_auto_increment;
+                                        toggled(c) => { root.update-column-auto(i, c); }
+                                    }
+                                }
+
+                                HorizontalLayout {
+                                    alignment: end;
+
+                                    if root.columns.length > 1 : DangerButton {
+                                        text: "✕";
+                                        height: 28px;
+                                        clicked => { root.remove-column(i); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Rectangle { }
+    }
+}

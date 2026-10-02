@@ -1,0 +1,124 @@
+import { Theme } from "../theme.slint";
+import { PanelCard, AlertBanner } from "../components/card.slint";
+import { PrimaryButton, SecondaryButton } from "../components/button.slint";
+import { TextInputBox } from "../components/input.slint";
+
+export struct InsertFieldItem {
+    name: string,
+    col_type: string,
+    value: string,
+    is_null: bool,
+}
+
+export component InsertViewView inherits Rectangle {
+    in-out property <string> db-name: "";
+    in-out property <string> table-name: "";
+    in-out property <[InsertFieldItem]> fields: [];
+    in-out property <bool> loading: false;
+    in-out property <string> error-message: "";
+    in-out property <string> success-message: "";
+
+    callback update-field(int, string);
+    callback save-row();
+    callback cancel();
+
+    background: Theme.bg-base;
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+        content-height: content.preferred-height;
+
+        content := VerticalLayout {
+            padding: 20px;
+            spacing: 16px;
+
+            HorizontalLayout {
+                alignment: space-between;
+
+                VerticalLayout {
+                    spacing: 4px;
+                    Text {
+                        text: "INSERT ROW: " + root.db-name + "." + root.table-name;
+                        color: Theme.accent;
+                        font-size: Theme.font-lg;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+                    Text {
+                        text: "Create a new record in this table";
+                        color: Theme.text-muted;
+                        font-size: Theme.font-xs;
+                        font-family: Theme.font-mono;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 8px;
+
+                    SecondaryButton {
+                        text: "Cancel";
+                        clicked => { root.cancel(); }
+                    }
+
+                    PrimaryButton {
+                        text: "💾 Save Record";
+                        loading: root.loading;
+                        enabled: !root.loading;
+                        clicked => { root.save-row(); }
+                    }
+                }
+            }
+
+            if root.error-message != "" : AlertBanner {
+                text: root.error-message;
+                level: "error";
+            }
+
+            if root.success-message != "" : AlertBanner {
+                text: root.success-message;
+                level: "success";
+            }
+
+            PanelCard {
+                VerticalLayout {
+                    padding: 20px;
+                    spacing: 16px;
+
+                    for fld[i] in root.fields: VerticalLayout {
+                        spacing: 4px;
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: start;
+
+                            Text {
+                                text: fld.name;
+                                color: Theme.foreground;
+                                font-size: Theme.font-xs;
+                                font-weight: 600;
+                                font-family: Theme.font-mono;
+                            }
+
+                            Text {
+                                text: "(" + fld.col_type + ")";
+                                color: Theme.accent;
+                                font-size: Theme.font-xs;
+                                font-family: Theme.font-mono;
+                            }
+                        }
+
+                        TextInputBox {
+                            text: fld.value;
+                            placeholder: "Enter value...";
+                            edited(val) => {
+                                root.update-field(i, val);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Rectangle { }
+    }
+}

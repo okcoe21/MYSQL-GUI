@@ -1,0 +1,470 @@
+import { Theme } from "../theme.slint";
+import { TextInputBox } from "../components/input.slint";
+import { PrimaryButton, SecondaryButton } from "../components/button.slint";
+
+export struct DatabaseItem {
+    name: string,
+    expanded: bool,
+    tables: [string],
+    views: [string],
+    procedures: [string],
+    functions: [string],
+}
+
+export component Sidebar inherits Rectangle {
+    in-out property <[DatabaseItem]> databases: [];
+    in-out property <string> selected-db: "";
+    in-out property <string> selected-table: "";
+    in-out property <string> selected-object: "";
+    in-out property <string> search-filter: "";
+    in-out property <bool> show-create-db: false;
+    in-out property <string> new-db-name: "";
+    in-out property <string> current-view: "server_overview";
+
+    callback select-server();
+    callback select-users();
+    callback select-performance();
+    callback select-slow-log();
+    callback select-db(string);
+    callback toggle-db(int);
+    callback select-table(string, string);
+    callback select-object(string, string, string);
+    callback select-diagram(string);
+    callback create-db(string);
+    callback toggle-create-db();
+
+    width: 260px;
+    background: Theme.bg-panel;
+    border-color: Theme.border;
+    border-width: 1px;
+
+    VerticalLayout {
+        padding: 0px;
+        spacing: 0px;
+
+        // Search & New DB bar
+        Rectangle {
+            vertical-stretch: 0;
+            height: 52px;
+            border-color: Theme.border;
+            border-width: 1px;
+            background: Theme.bg-panel;
+
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                alignment: space-between;
+                spacing: 8px;
+
+                TextInputBox {
+                    text <=> root.search-filter;
+                    placeholder: "Search Databases...";
+                    height: 32px;
+                    width: 85%;
+                    y: (parent.height - self.height) / 2;
+                }
+
+                new_db_btn := Rectangle {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: Theme.radius;
+                    background: new_touch.has-hover ? Theme.accent : Theme.bg-base;
+                    border-color: Theme.accent;
+                    border-width: 1px;
+                    y: (parent.height - self.height) / 2;
+
+                    Text {
+                        text: "+";
+                        color: new_touch.has-hover ? (Theme.is-dark ? #0d0d0d : #ffffff) : Theme.accent;
+                        font-size: Theme.font-md;
+                        font-weight: 700;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+
+                    new_touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.toggle-create-db();
+                        }
+                    }
+                }
+            }
+        }
+
+        // Inline Create Database Form if open
+        if root.show-create-db : Rectangle {
+            background: Theme.bg-base;
+            border-color: Theme.border;
+            border-width: 1px;
+
+            VerticalLayout {
+                padding: 10px;
+                spacing: 8px;
+
+                Text {
+                    text: "CREATE NEW DATABASE";
+                    color: Theme.accent;
+                    font-size: Theme.font-xs;
+                    font-weight: 700;
+                    font-family: Theme.font-mono;
+                }
+
+                new_input := TextInputBox {
+                    text <=> root.new-db-name;
+                    placeholder: "db_name";
+                    height: 30px;
+                    accepted => {
+                        if root.new-db-name != "" {
+                            root.create-db(root.new-db-name);
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: end;
+
+                    SecondaryButton {
+                        text: "Cancel";
+                        custom-font-size: Theme.font-xs;
+                        height: 26px;
+                        clicked => {
+                            root.toggle-create-db();
+                        }
+                    }
+
+                    PrimaryButton {
+                        text: "Create";
+                        custom-font-size: Theme.font-xs;
+                        height: 26px;
+                        clicked => {
+                            if root.new-db-name != "" {
+                                root.create-db(root.new-db-name);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Quick System Links
+        Rectangle {
+            vertical-stretch: 0;
+            background: Theme.bg-panel;
+            border-color: Theme.border;
+            border-width: 1px;
+
+            VerticalLayout {
+                padding-top: 6px;
+                padding-bottom: 6px;
+                spacing: 2px;
+
+                // Server Overview
+                Rectangle {
+                    height: 30px;
+                    background: root.current-view == "server_overview" ? Theme.bg-active : (srv_touch.has-hover ? Theme.bg-hover : transparent);
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        spacing: 8px;
+                        Text {
+                            text: "Server Overview";
+                            color: root.current-view == "server_overview" ? Theme.accent : Theme.foreground;
+                            font-size: Theme.font-xs;
+                            font-weight: root.current-view == "server_overview" ? 600 : 400;
+                            font-family: Theme.font-mono;
+                            vertical-alignment: center;
+                        }
+                    }
+                    srv_touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.select-server(); }
+                    }
+                }
+
+                // User Management
+                Rectangle {
+                    height: 30px;
+                    background: root.current-view == "users" ? Theme.bg-active : (user_touch.has-hover ? Theme.bg-hover : transparent);
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        spacing: 8px;
+                        Text {
+                            text: "User Management";
+                            color: root.current-view == "users" ? Theme.accent : Theme.foreground;
+                            font-size: Theme.font-xs;
+                            font-weight: root.current-view == "users" ? 600 : 400;
+                            font-family: Theme.font-mono;
+                            vertical-alignment: center;
+                        }
+                    }
+                    user_touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.select-users(); }
+                    }
+                }
+
+                // Performance
+                Rectangle {
+                    height: 30px;
+                    background: root.current-view == "performance" ? Theme.bg-active : (perf_touch.has-hover ? Theme.bg-hover : transparent);
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        spacing: 8px;
+                        Text {
+                            text: "Performance";
+                            color: root.current-view == "performance" ? Theme.accent : Theme.foreground;
+                            font-size: Theme.font-xs;
+                            font-weight: root.current-view == "performance" ? 600 : 400;
+                            font-family: Theme.font-mono;
+                            vertical-alignment: center;
+                        }
+                    }
+                    perf_touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.select-performance(); }
+                    }
+                }
+
+                // Slow Query Log
+                Rectangle {
+                    height: 30px;
+                    background: root.current-view == "slow_log" ? Theme.bg-active : (slow_touch.has-hover ? Theme.bg-hover : transparent);
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        spacing: 8px;
+                        Text {
+                            text: "Slow Query Log";
+                            color: root.current-view == "slow_log" ? Theme.accent : Theme.foreground;
+                            font-size: Theme.font-xs;
+                            font-weight: root.current-view == "slow_log" ? 600 : 400;
+                            font-family: Theme.font-mono;
+                            vertical-alignment: center;
+                        }
+                    }
+                    slow_touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.select-slow-log(); }
+                    }
+                }
+            }
+        }
+
+        // Section header
+        Rectangle {
+            vertical-stretch: 0;
+            height: 28px;
+            background: Theme.bg-header;
+            border-color: Theme.border;
+            border-width: 1px;
+
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                Text {
+                    text: "DATABASES (" + root.databases.length + ")";
+                    color: Theme.text-muted;
+                    font-size: 10px;
+                    font-weight: 700;
+                    letter-spacing: 0.5px;
+                    font-family: Theme.font-mono;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // Scrollable Database Tree List
+        Flickable {
+            vertical-stretch: 1;
+            content-height: db_layout.preferred-height;
+            
+            db_layout := VerticalLayout {
+                padding-top: 4px;
+                padding-bottom: 20px;
+                spacing: 2px;
+
+                for db[i] in root.databases: VerticalLayout {
+                    spacing: 1px;
+
+                    // Database header row
+                    Rectangle {
+                        height: 32px;
+                        background: root.selected-db == db.name ? Theme.bg-selected : (db_touch.has-hover ? Theme.bg-hover : transparent);
+                        border-color: root.selected-db == db.name ? Theme.accent : transparent;
+                        border-width: root.selected-db == db.name ? 1px : 0px;
+
+                        HorizontalLayout {
+                            padding-left: 10px;
+                            padding-right: 10px;
+                            spacing: 8px;
+                            alignment: start;
+
+                            Text {
+                                text: db.expanded ? "▾" : "▸";
+                                color: Theme.accent;
+                                font-size: Theme.font-xs;
+                                font-weight: 700;
+                                vertical-alignment: center;
+                            }
+
+                            Text {
+                                text: db.name;
+                                color: root.selected-db == db.name ? Theme.accent : Theme.foreground;
+                                font-size: Theme.font-sm;
+                                font-weight: root.selected-db == db.name ? 600 : 500;
+                                font-family: Theme.font-mono;
+                                vertical-alignment: center;
+                                overflow: elide;
+                            }
+                        }
+
+                        db_touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.toggle-db(i);
+                                root.select-db(db.name);
+                            }
+                        }
+                    }
+
+                    // Expanded Children
+                    if db.expanded : VerticalLayout {
+                        padding-left: 20px;
+                        spacing: 1px;
+
+                        // Overview shortcut
+                        Rectangle {
+                            height: 26px;
+                            background: (root.selected-db == db.name && root.selected-table == "" && root.selected-object == "") ? Theme.bg-active : (ov_touch.has-hover ? Theme.bg-hover : transparent);
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                spacing: 6px;
+                                Text {
+                                    text: "Overview";
+                                    color: (root.selected-db == db.name && root.selected-table == "" && root.selected-object == "") ? Theme.accent : Theme.text-muted;
+                                    font-size: Theme.font-xs;
+                                    font-family: Theme.font-mono;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            ov_touch := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.select-db(db.name); }
+                            }
+                        }
+
+                        // ER Diagram shortcut
+                        Rectangle {
+                            height: 26px;
+                            background: dia_touch.has-hover ? Theme.bg-hover : transparent;
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                spacing: 6px;
+                                Text {
+                                    text: "ER Diagram";
+                                    color: dia_touch.has-hover ? Theme.accent : Theme.text-muted;
+                                    font-size: Theme.font-xs;
+                                    font-family: Theme.font-mono;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            dia_touch := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.select-diagram(db.name); }
+                            }
+                        }
+
+                        // Tables Header & Items
+                        if db.tables.length > 0 : VerticalLayout {
+                            spacing: 1px;
+
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-top: 4px;
+                                Text {
+                                    text: "TABLES (" + db.tables.length + ")";
+                                    color: Theme.text-subtle;
+                                    font-size: 9px;
+                                    font-weight: 700;
+                                    font-family: Theme.font-mono;
+                                }
+                            }
+
+                            for tbl in db.tables: Rectangle {
+                                height: 26px;
+                                background: (root.selected-db == db.name && root.selected-table == tbl) ? Theme.bg-active : (tbl_touch.has-hover ? Theme.bg-hover : transparent);
+
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 8px;
+                                    spacing: 6px;
+
+                                    Text {
+                                        text: tbl;
+                                        color: (root.selected-db == db.name && root.selected-table == tbl) ? Theme.accent : Theme.text-muted;
+                                        font-size: Theme.font-xs;
+                                        font-family: Theme.font-mono;
+                                        vertical-alignment: center;
+                                        overflow: elide;
+                                    }
+                                }
+
+                                tbl_touch := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.select-table(db.name, tbl);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Views Items
+                        if db.views.length > 0 : VerticalLayout {
+                            spacing: 1px;
+
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-top: 4px;
+                                Text {
+                                    text: "VIEWS (" + db.views.length + ")";
+                                    color: Theme.text-subtle;
+                                    font-size: 9px;
+                                    font-weight: 700;
+                                    font-family: Theme.font-mono;
+                                }
+                            }
+
+                            for vw in db.views: Rectangle {
+                                height: 26px;
+                                background: (root.selected-db == db.name && root.selected-object == vw) ? Theme.bg-active : (vw_touch.has-hover ? Theme.bg-hover : transparent);
+
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 8px;
+                                    spacing: 6px;
+
+                                    Text {
+                                        text: vw;
+                                        color: (root.selected-db == db.name && root.selected-object == vw) ? Theme.accent : Theme.text-muted;
+                                        font-size: Theme.font-xs;
+                                        font-family: Theme.font-mono;
+                                        vertical-alignment: center;
+                                        overflow: elide;
+                                    }
+                                }
+
+                                vw_touch := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.select-object(db.name, vw, "view");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Rectangle { }
+            }
+        }
+    }
+}

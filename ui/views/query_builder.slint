@@ -1,0 +1,211 @@
+import { Theme } from "../theme.slint";
+import { PanelCard } from "../components/card.slint";
+import { PrimaryButton, SecondaryButton } from "../components/button.slint";
+import { TextInputBox } from "../components/input.slint";
+
+export struct ConditionItem {
+    column: string,
+    operator: string,
+    value: string,
+}
+
+export component QueryBuilderView inherits Rectangle {
+    in-out property <string> db-name: "";
+    in-out property <string> selected-table: "";
+    in-out property <[string]> tables: [];
+    in-out property <[string]> available-columns: [];
+    in-out property <string> generated-sql: "";
+    in-out property <string> limit-str: "100";
+
+    in-out property <string> cond-col: "";
+    in-out property <string> cond-op: "=";
+    in-out property <string> cond-val: "";
+
+    callback select-table(string);
+    callback run-query(string);
+    callback generate();
+
+    background: Theme.bg-base;
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+        content-height: content.preferred-height;
+
+        content := VerticalLayout {
+            padding: 20px;
+            spacing: 16px;
+
+            HorizontalLayout {
+                alignment: space-between;
+
+                VerticalLayout {
+                    spacing: 4px;
+                    Text {
+                        text: "VISUAL QUERY BUILDER";
+                        color: Theme.accent;
+                        font-size: Theme.font-lg;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+                    Text {
+                        text: "Visually compose SELECT statements with filter criteria";
+                        color: Theme.text-muted;
+                        font-size: Theme.font-xs;
+                        font-family: Theme.font-mono;
+                    }
+                }
+
+                PrimaryButton {
+                    text: "▶ Execute in Console";
+                    enabled: root.generated-sql != "";
+                    clicked => { root.run-query(root.generated-sql); }
+                }
+            }
+
+            // Table Selection
+            PanelCard {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+
+                    Text {
+                        text: "1. CHOOSE TABLE";
+                        color: Theme.accent;
+                        font-size: Theme.font-xs;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        for tbl in root.tables: Rectangle {
+                            height: 30px;
+                            background: root.selected-table == tbl ? Theme.bg-active : Theme.bg-input;
+                            border-color: root.selected-table == tbl ? Theme.accent : Theme.border;
+                            border-width: 1px;
+                            border-radius: Theme.radius;
+
+                            HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                Text {
+                                    text: "📋 " + tbl;
+                                    color: root.selected-table == tbl ? Theme.accent : Theme.foreground;
+                                    font-size: Theme.font-xs;
+                                    font-weight: root.selected-table == tbl ? 600 : 400;
+                                    font-family: Theme.font-mono;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.select-table(tbl);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Filter Condition
+            PanelCard {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    Text {
+                        text: "2. FILTER CONDITIONS (WHERE CLAUSE)";
+                        color: Theme.accent;
+                        font-size: Theme.font-xs;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 10px;
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            width: 160px;
+                            Text { text: "COLUMN"; color: Theme.text-muted; font-size: Theme.font-xs; font-family: Theme.font-mono; }
+                            TextInputBox {
+                                text <=> root.cond-col;
+                                placeholder: "id or column_name";
+                                edited => { root.generate(); }
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            width: 100px;
+                            Text { text: "OPERATOR"; color: Theme.text-muted; font-size: Theme.font-xs; font-family: Theme.font-mono; }
+                            TextInputBox {
+                                text <=> root.cond-op;
+                                placeholder: "=";
+                                edited => { root.generate(); }
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "VALUE"; color: Theme.text-muted; font-size: Theme.font-xs; font-family: Theme.font-mono; }
+                            TextInputBox {
+                                text <=> root.cond-val;
+                                placeholder: "value or text";
+                                edited => { root.generate(); }
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            width: 80px;
+                            Text { text: "LIMIT"; color: Theme.text-muted; font-size: Theme.font-xs; font-family: Theme.font-mono; }
+                            TextInputBox {
+                                text <=> root.limit-str;
+                                placeholder: "100";
+                                edited => { root.generate(); }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Generated SQL Output Box
+            PanelCard {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+
+                    Text {
+                        text: "GENERATED SQL STATEMENT";
+                        color: Theme.accent;
+                        font-size: Theme.font-xs;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+
+                    Rectangle {
+                        background: Theme.bg-input;
+                        border-color: Theme.border;
+                        border-width: 1px;
+                        border-radius: Theme.radius;
+
+                        HorizontalLayout {
+                            padding: 14px;
+                            Text {
+                                text: root.generated-sql == "" ? "-- Select a table above to generate SQL" : root.generated-sql;
+                                color: root.generated-sql == "" ? Theme.text-subtle : Theme.accent;
+                                font-size: Theme.font-sm;
+                                font-family: Theme.font-mono;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Rectangle { }
+    }
+}

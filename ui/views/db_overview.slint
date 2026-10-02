@@ -1,0 +1,214 @@
+import { Theme } from "../theme.slint";
+import { StatCard, PanelCard } from "../components/card.slint";
+import { PrimaryButton, SecondaryButton, DangerButton } from "../components/button.slint";
+
+export struct TableStatItem {
+    name: string,
+    row_count: string,
+    data_size: string,
+    engine: string,
+    collation: string,
+}
+
+export component DbOverviewView inherits Rectangle {
+    in-out property <string> db-name: "";
+    in-out property <string> total-tables: "0";
+    in-out property <string> total-rows: "0";
+    in-out property <string> total-size: "0 B";
+    in-out property <[TableStatItem]> tables: [];
+
+    callback select-table(string);
+    callback view-structure(string);
+    callback create-table();
+    callback drop-table(string);
+    callback refresh();
+
+    background: Theme.bg-base;
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+        content-height: content.preferred-height;
+
+        content := VerticalLayout {
+            padding: 20px;
+            spacing: 12px;
+
+            // Header title & Actions
+            HorizontalLayout {
+                alignment: space-between;
+
+                VerticalLayout {
+                    spacing: 4px;
+                    Text {
+                        text: "DATABASE: " + root.db-name;
+                        color: Theme.accent;
+                        font-size: Theme.font-lg;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+                    Text {
+                        text: "Table Schema Statistics & Storage Overview";
+                        color: Theme.text-muted;
+                        font-size: Theme.font-xs;
+                        font-family: Theme.font-mono;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 10px;
+
+                    SecondaryButton {
+                        text: "↻ Refresh";
+                        clicked => { root.refresh(); }
+                    }
+
+                    PrimaryButton {
+                        text: "+ Create Table";
+                        clicked => { root.create-table(); }
+                    }
+                }
+            }
+
+            // Stat Cards Row
+            HorizontalLayout {
+                spacing: 12px;
+
+                StatCard {
+                    label: "TABLES";
+                    value: root.total-tables;
+                    subtext: "Defined entities";
+                    value-color: Theme.accent;
+                }
+
+                StatCard {
+                    label: "TOTAL ROWS";
+                    value: root.total-rows;
+                    subtext: "Stored records";
+                    value-color: Theme.info;
+                }
+
+                StatCard {
+                    label: "STORAGE SIZE";
+                    value: root.total-size;
+                    subtext: "On-disk data usage";
+                    value-color: Theme.foreground;
+                }
+            }
+
+            // Tables Panel
+            PanelCard {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    Text {
+                        text: "TABLES (" + root.tables.length + ")";
+                        color: Theme.accent;
+                        font-size: Theme.font-sm;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+
+                    // Table Header
+                    Rectangle {
+                        height: 32px;
+                        background: Theme.bg-header;
+                        border-color: Theme.border;
+                        border-width: 1px;
+
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            spacing: 12px;
+
+                            Text { text: "TABLE NAME"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; width: 220px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "ROWS"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; width: 90px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "SIZE"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; width: 90px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "ENGINE"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; width: 100px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "COLLATION"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; width: 140px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "ACTIONS"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; vertical-alignment: center; horizontal-alignment: end; font-family: Theme.font-mono; }
+                        }
+                    }
+
+                    // Table Rows
+                    if root.tables.length == 0 : Rectangle {
+                        height: 80px;
+                        Text {
+                            text: "No tables found in this database. Click '+ Create Table' to add one.";
+                            color: Theme.text-muted;
+                            font-size: Theme.font-sm;
+                            font-family: Theme.font-mono;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    VerticalLayout {
+                        spacing: 1px;
+
+                        for tbl in root.tables: Rectangle {
+                            height: 36px;
+                            background: row_touch.has-hover ? Theme.bg-hover : Theme.bg-panel;
+                            border-color: Theme.border;
+                            border-width: 1px;
+
+                            HorizontalLayout {
+                                padding-left: 12px;
+                                padding-right: 12px;
+                                spacing: 12px;
+
+                                Text {
+                                    text: "📋 " + tbl.name;
+                                    color: row_touch.has-hover ? Theme.accent : Theme.foreground;
+                                    font-size: Theme.font-sm;
+                                    font-weight: 500;
+                                    font-family: Theme.font-mono;
+                                    width: 220px;
+                                    vertical-alignment: center;
+                                    overflow: elide;
+                                }
+
+                                Text { text: tbl.row_count; color: Theme.foreground; font-size: Theme.font-xs; width: 90px; vertical-alignment: center; font-family: Theme.font-mono; }
+                                Text { text: tbl.data_size; color: Theme.text-muted; font-size: Theme.font-xs; width: 90px; vertical-alignment: center; font-family: Theme.font-mono; }
+                                Text { text: tbl.engine; color: Theme.text-muted; font-size: Theme.font-xs; width: 100px; vertical-alignment: center; font-family: Theme.font-mono; }
+                                Text { text: tbl.collation; color: Theme.text-subtle; font-size: Theme.font-xs; width: 140px; vertical-alignment: center; font-family: Theme.font-mono; overflow: elide; }
+
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    alignment: end;
+
+                                    SecondaryButton {
+                                        text: "Browse";
+                                        custom-font-size: Theme.font-xs;
+                                        height: 26px;
+                                        clicked => { root.select-table(tbl.name); }
+                                    }
+
+                                    SecondaryButton {
+                                        text: "Structure";
+                                        custom-font-size: Theme.font-xs;
+                                        height: 26px;
+                                        clicked => { root.view-structure(tbl.name); }
+                                    }
+
+                                    DangerButton {
+                                        text: "Drop";
+                                        height: 26px;
+                                        clicked => { root.drop-table(tbl.name); }
+                                    }
+                                }
+                            }
+
+                            row_touch := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.select-table(tbl.name); }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Rectangle { }
+    }
+}

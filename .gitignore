@@ -1,46 +1,24 @@
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
+# Rust build artifacts
+/target/
+**/*.rs.bk
+*.pdb
 
-# testing
-/coverage
+# Slint compiled artifacts
+ui/**/*.rs
 
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# local env files
-.env*.local
+# Environment variables and secrets
 .env
+.env*.local
 
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-# OS files
+# System & Editor files
 .DS_Store
 Thumbs.db
+*.swp
+*~
+.vscode/
+.idea/
 
-# Extras
-.agents
-desktop/.vscode/
-/desktop/node_modules/
-/desktop/dist/
-/desktop/src-tauri/target/
-/desktop/src-tauri/gen/
+# Agent & Scratch artifacts
+scratch/
 .planning/
-**/target/
-**/gen/schemas/
+.agents/

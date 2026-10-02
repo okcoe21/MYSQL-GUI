@@ -1,0 +1,122 @@
+import { Theme } from "../theme.slint";
+import { PanelCard, AlertBanner } from "../components/card.slint";
+import { PrimaryButton, SecondaryButton } from "../components/button.slint";
+import { MultilineInputBox } from "../components/input.slint";
+
+export component ImportViewView inherits Rectangle {
+    in-out property <string> db-name: "";
+    in-out property <string> sql-content <=> sql_box.text;
+    in-out property <bool> loading: false;
+    in-out property <string> message: "";
+    in-out property <string> error-message: "";
+    in-out property <[string]> errors: [];
+
+    callback choose-file();
+    callback run-import(string);
+
+    background: Theme.bg-base;
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+        content-height: content.preferred-height;
+
+        content := VerticalLayout {
+            padding: 20px;
+            spacing: 16px;
+
+            HorizontalLayout {
+                alignment: space-between;
+
+                VerticalLayout {
+                    spacing: 4px;
+                    Text {
+                        text: "IMPORT SQL: " + root.db-name;
+                        color: Theme.accent;
+                        font-size: Theme.font-lg;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+                    Text {
+                        text: "Execute SQL batch scripts, DDL dumps, or data restores";
+                        color: Theme.text-muted;
+                        font-size: Theme.font-xs;
+                        font-family: Theme.font-mono;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 10px;
+
+                    SecondaryButton {
+                        text: "📂 Load File...";
+                        clicked => { root.choose-file(); }
+                    }
+
+                    PrimaryButton {
+                        text: "▶ Execute Import";
+                        loading: root.loading;
+                        enabled: !root.loading && root.sql-content != "";
+                        clicked => { root.run-import(root.sql-content); }
+                    }
+                }
+            }
+
+            if root.error-message != "" : AlertBanner {
+                text: root.error-message;
+                level: "error";
+            }
+
+            if root.message != "" : AlertBanner {
+                text: root.message;
+                level: "success";
+            }
+
+            // SQL editor input
+            PanelCard {
+                height: 280px;
+                VerticalLayout {
+                    padding: 0px;
+                    sql_box := MultilineInputBox {
+                        placeholder: "Paste SQL dump or statements here (semicolon-delimited)...";
+                    }
+                }
+            }
+
+            // Errors List if any
+            if root.errors.length > 0 : PanelCard {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 8px;
+
+                    Text {
+                        text: "STATEMENT ERRORS (" + root.errors.length + ")";
+                        color: Theme.danger;
+                        font-size: Theme.font-xs;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+
+                    for err in root.errors: Rectangle {
+                        background: Theme.danger-subtle;
+                        border-color: Theme.danger;
+                        border-width: 1px;
+                        border-radius: Theme.radius;
+
+                        HorizontalLayout {
+                            padding: 8px;
+                            Text {
+                                text: err;
+                                color: Theme.danger;
+                                font-size: Theme.font-xs;
+                                font-family: Theme.font-mono;
+                                wrap: word-wrap;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Rectangle { }
+    }
+}

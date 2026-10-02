@@ -1,0 +1,288 @@
+import { Theme } from "../theme.slint";
+import { StatCard, PanelCard } from "../components/card.slint";
+import { PrimaryButton, SecondaryButton, DangerButton } from "../components/button.slint";
+
+export struct ProcessItem {
+    id: string,
+    user: string,
+    host: string,
+    db: string,
+    command: string,
+    time: string,
+    state: string,
+    info: string,
+}
+
+export struct DbSummaryItem {
+    name: string,
+    table_count: int,
+}
+
+export component ServerOverviewView inherits Rectangle {
+    in-out property <string> uptime-str: "0d 0h 0m";
+    in-out property <string> threads-connected: "0";
+    in-out property <string> threads-running: "0";
+    in-out property <string> total-queries: "0";
+    in-out property <string> slow-queries: "0";
+    in-out property <[DbSummaryItem]> databases: [];
+    in-out property <[ProcessItem]> processes: [];
+
+    callback select-db(string);
+    callback drop-db(string);
+    callback refresh();
+
+    background: Theme.bg-base;
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+        content-height: content.preferred-height;
+
+        content := VerticalLayout {
+            padding: 20px;
+            spacing: 12px;
+
+            // Header title & refresh
+            HorizontalLayout {
+                alignment: space-between;
+
+                VerticalLayout {
+                    spacing: 4px;
+                    Text {
+                        text: "SERVER OVERVIEW";
+                        color: Theme.accent;
+                        font-size: Theme.font-lg;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+                    Text {
+                        text: "MySQL Server Health & Connection Diagnostics";
+                        color: Theme.text-muted;
+                        font-size: Theme.font-xs;
+                        font-family: Theme.font-mono;
+                    }
+                }
+
+                SecondaryButton {
+                    text: "↻ Refresh Status";
+                    clicked => { root.refresh(); }
+                }
+            }
+
+            // Stat Cards Row
+            HorizontalLayout {
+                spacing: 12px;
+
+                StatCard {
+                    label: "UPTIME";
+                    value: root.uptime-str;
+                    subtext: "Continuous runtime";
+                    value-color: Theme.accent;
+                }
+
+                StatCard {
+                    label: "CONNECTED CLIENTS";
+                    value: root.threads-connected;
+                    subtext: "Active connection pool";
+                    value-color: Theme.info;
+                }
+
+                StatCard {
+                    label: "RUNNING THREADS";
+                    value: root.threads-running;
+                    subtext: "Executing queries";
+                    value-color: Theme.accent;
+                }
+
+                StatCard {
+                    label: "TOTAL QUERIES";
+                    value: root.total-queries;
+                    subtext: "Questions handled";
+                    value-color: Theme.foreground;
+                }
+
+                StatCard {
+                    label: "SLOW QUERIES";
+                    value: root.slow-queries;
+                    subtext: "Exceeding threshold";
+                    value-color: root.slow-queries == "0" ? Theme.success : Theme.danger;
+                }
+            }
+
+            // Databases Summary Panel
+            PanelCard {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    Text {
+                        text: "HOSTED DATABASES (" + root.databases.length + ")";
+                        color: Theme.accent;
+                        font-size: Theme.font-sm;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+
+                    // Table Header
+                    Rectangle {
+                        height: 32px;
+                        background: Theme.bg-header;
+                        border-color: Theme.border;
+                        border-width: 1px;
+
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            alignment: space-between;
+
+                            Text {
+                                text: "DATABASE NAME";
+                                color: Theme.accent;
+                                font-size: Theme.font-xs;
+                                font-weight: 600;
+                                font-family: Theme.font-mono;
+                                vertical-alignment: center;
+                                width: 300px;
+                            }
+
+                            Text {
+                                text: "ACTIONS";
+                                color: Theme.accent;
+                                font-size: Theme.font-xs;
+                                font-weight: 600;
+                                font-family: Theme.font-mono;
+                                vertical-alignment: center;
+                                horizontal-alignment: end;
+                            }
+                        }
+                    }
+
+                    // Database Rows
+                    VerticalLayout {
+                        spacing: 1px;
+
+                        for db in root.databases: Rectangle {
+                            height: 36px;
+                            background: row_touch.has-hover ? Theme.bg-hover : Theme.bg-panel;
+                            border-color: Theme.border;
+                            border-width: 1px;
+
+                            HorizontalLayout {
+                                padding-left: 12px;
+                                padding-right: 12px;
+                                alignment: space-between;
+
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    width: 300px;
+                                    Text {
+                                        text: "🗄 " + db.name;
+                                        color: row_touch.has-hover ? Theme.accent : Theme.foreground;
+                                        font-size: Theme.font-sm;
+                                        font-family: Theme.font-mono;
+                                        vertical-alignment: center;
+                                    }
+                                }
+
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    alignment: end;
+
+                                    SecondaryButton {
+                                        text: "Open";
+                                        custom-font-size: Theme.font-xs;
+                                        height: 26px;
+                                        clicked => { root.select-db(db.name); }
+                                    }
+
+                                    DangerButton {
+                                        text: "Drop";
+                                        height: 26px;
+                                        clicked => { root.drop-db(db.name); }
+                                    }
+                                }
+                            }
+
+                            row_touch := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.select-db(db.name); }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Process List Panel
+            PanelCard {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Text {
+                            text: "ACTIVE PROCESSLIST (" + root.processes.length + ")";
+                            color: Theme.accent;
+                            font-size: Theme.font-sm;
+                            font-weight: 700;
+                            font-family: Theme.font-mono;
+                        }
+                    }
+
+                    // Process Header
+                    Rectangle {
+                        height: 32px;
+                        background: Theme.bg-header;
+                        border-color: Theme.border;
+                        border-width: 1px;
+
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            spacing: 10px;
+
+                            Text { text: "ID"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; width: 60px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "USER"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; width: 100px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "HOST"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; width: 140px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "DB"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; width: 100px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "COMMAND"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; width: 100px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "TIME"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; width: 60px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "STATE"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; width: 120px; vertical-alignment: center; font-family: Theme.font-mono; }
+                            Text { text: "INFO"; color: Theme.accent; font-size: Theme.font-xs; font-weight: 600; vertical-alignment: center; font-family: Theme.font-mono; }
+                        }
+                    }
+
+                    // Process Rows
+                    VerticalLayout {
+                        spacing: 1px;
+
+                        for proc in root.processes: Rectangle {
+                            height: 32px;
+                            background: proc_touch.has-hover ? Theme.bg-hover : Theme.bg-panel;
+                            border-color: Theme.border;
+                            border-width: 1px;
+
+                            HorizontalLayout {
+                                padding-left: 12px;
+                                padding-right: 12px;
+                                spacing: 10px;
+
+                                Text { text: proc.id; color: Theme.text-muted; font-size: Theme.font-xs; width: 60px; vertical-alignment: center; font-family: Theme.font-mono; }
+                                Text { text: proc.user; color: Theme.foreground; font-size: Theme.font-xs; width: 100px; vertical-alignment: center; font-family: Theme.font-mono; }
+                                Text { text: proc.host; color: Theme.text-muted; font-size: Theme.font-xs; width: 140px; vertical-alignment: center; font-family: Theme.font-mono; overflow: elide; }
+                                Text { text: proc.db == "" ? "None" : proc.db; color: Theme.accent; font-size: Theme.font-xs; width: 100px; vertical-alignment: center; font-family: Theme.font-mono; }
+                                Text { text: proc.command; color: Theme.foreground; font-size: Theme.font-xs; width: 100px; vertical-alignment: center; font-family: Theme.font-mono; }
+                                Text { text: proc.time + "s"; color: Theme.text-muted; font-size: Theme.font-xs; width: 60px; vertical-alignment: center; font-family: Theme.font-mono; }
+                                Text { text: proc.state == "" ? "-" : proc.state; color: Theme.text-subtle; font-size: Theme.font-xs; width: 120px; vertical-alignment: center; font-family: Theme.font-mono; overflow: elide; }
+                                Text { text: proc.info == "" ? "-" : proc.info; color: Theme.foreground; font-size: Theme.font-xs; vertical-alignment: center; font-family: Theme.font-mono; overflow: elide; }
+                            }
+
+                            proc_touch := TouchArea {}
+                        }
+                    }
+                }
+            }
+            Rectangle { }
+        }
+    }
+}

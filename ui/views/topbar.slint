@@ -1,0 +1,206 @@
+import { Theme } from "../theme.slint";
+import { GhostButton } from "../components/button.slint";
+import { StatusDot } from "../components/card.slint";
+
+export component TopBar inherits Rectangle {
+    in-out property <string> server-name: "localhost";
+    in-out property <string> selected-db: "";
+    in-out property <string> selected-table: "";
+
+    callback navigate-server();
+    callback navigate-db(string);
+    callback navigate-table(string, string);
+    callback toggle-theme();
+    callback logout();
+
+    height: 48px;
+    background: Theme.bg-header;
+    border-color: Theme.border;
+    border-width: 1px;
+
+    HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        alignment: space-between;
+
+        // Left: Brand + Status + Breadcrumbs
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: start;
+
+            // Brand
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+
+                StatusDot {
+                    dot-color: Theme.accent;
+                    y: (parent.height - self.height) / 2;
+                }
+
+                Text {
+                    text: "MySQL GUI";
+                    color: Theme.accent;
+                    font-size: Theme.font-md;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                    font-family: Theme.font-mono;
+                }
+            }
+
+            Rectangle {
+                width: 1px;
+                height: 20px;
+                background: Theme.border;
+                y: (parent.height - self.height) / 2;
+            }
+
+            // Breadcrumbs
+            HorizontalLayout {
+                spacing: 8px;
+
+                // Server item
+                server_btn := Rectangle {
+                    border-radius: Theme.radius;
+                    background: server_touch.has-hover ? Theme.bg-hover : transparent;
+                    HorizontalLayout {
+                        padding-left: 6px;
+                        padding-right: 6px;
+                        Text {
+                            text: "🖥 Server: " + root.server-name;
+                            color: server_touch.has-hover ? Theme.accent : Theme.text-muted;
+                            font-size: Theme.font-xs;
+                            font-family: Theme.font-mono;
+                            vertical-alignment: center;
+                        }
+                    }
+                    server_touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.navigate-server(); }
+                    }
+                }
+
+                if root.selected-db != "" : HorizontalLayout {
+                    spacing: 8px;
+
+                    Text {
+                        text: "»";
+                        color: Theme.text-subtle;
+                        font-size: Theme.font-xs;
+                        vertical-alignment: center;
+                    }
+
+                    db_btn := Rectangle {
+                        border-radius: Theme.radius;
+                        background: db_touch.has-hover ? Theme.bg-hover : transparent;
+                        HorizontalLayout {
+                            padding-left: 6px;
+                            padding-right: 6px;
+                            Text {
+                                text: "🗄 " + root.selected-db;
+                                color: db_touch.has-hover ? Theme.accent : (root.selected-table == "" ? Theme.accent : Theme.text-muted);
+                                font-size: Theme.font-xs;
+                                font-weight: root.selected-table == "" ? 600 : 400;
+                                font-family: Theme.font-mono;
+                                vertical-alignment: center;
+                            }
+                        }
+                        db_touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.navigate-db(root.selected-db); }
+                        }
+                    }
+                }
+
+                if root.selected-table != "" : HorizontalLayout {
+                    spacing: 8px;
+
+                    Text {
+                        text: "»";
+                        color: Theme.text-subtle;
+                        font-size: Theme.font-xs;
+                        vertical-alignment: center;
+                    }
+
+                    table_btn := Rectangle {
+                        border-radius: Theme.radius;
+                        background: table_touch.has-hover ? Theme.bg-hover : transparent;
+                        HorizontalLayout {
+                            padding-left: 6px;
+                            padding-right: 6px;
+                            Text {
+                                text: "📋 " + root.selected-table;
+                                color: Theme.accent;
+                                font-size: Theme.font-xs;
+                                font-weight: 600;
+                                font-family: Theme.font-mono;
+                                vertical-alignment: center;
+                            }
+                        }
+                        table_touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.navigate-table(root.selected-db, root.selected-table); }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Right actions: Theme toggle + Logout
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: end;
+
+            theme_btn := Rectangle {
+                width: 32px;
+                height: 32px;
+                border-radius: Theme.radius;
+                background: theme_touch.has-hover ? Theme.bg-hover : transparent;
+                y: (parent.height - self.height) / 2;
+
+                Text {
+                    text: Theme.is-dark ? "☀" : "🌙";
+                    color: theme_touch.has-hover ? Theme.accent : Theme.text-muted;
+                    font-size: Theme.font-sm;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                theme_touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.toggle-theme(); }
+                }
+            }
+
+            logout_btn := Rectangle {
+                height: 32px;
+                border-radius: Theme.radius;
+                background: logout_touch.has-hover ? Theme.danger-subtle : transparent;
+                border-color: logout_touch.has-hover ? Theme.danger : transparent;
+                border-width: 1px;
+                y: (parent.height - self.height) / 2;
+
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    spacing: 6px;
+                    alignment: center;
+
+                    Text {
+                        text: "⏻ Disconnect";
+                        color: logout_touch.has-hover ? Theme.danger : Theme.text-muted;
+                        font-size: Theme.font-xs;
+                        font-weight: 500;
+                        font-family: Theme.font-mono;
+                        vertical-alignment: center;
+                    }
+                }
+
+                logout_touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.logout(); }
+                }
+            }
+        }
+    }
+}

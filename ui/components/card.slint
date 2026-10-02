@@ -1,0 +1,96 @@
+import { Theme } from "../theme.slint";
+
+export component PanelCard inherits Rectangle {
+    background: Theme.bg-panel;
+    border-color: Theme.border;
+    border-width: 1px;
+    border-radius: Theme.radius;
+}
+
+export component StatCard inherits Rectangle {
+    in-out property <string> label: "STAT";
+    in-out property <string> value: "0";
+    in-out property <string> subtext: "";
+    in-out property <color> value-color: Theme.accent;
+
+    background: Theme.bg-panel;
+    border-color: Theme.border;
+    border-width: 1px;
+    border-radius: Theme.radius;
+
+    VerticalLayout {
+        padding: 14px;
+        spacing: 4px;
+        alignment: space-between;
+
+        Text {
+            text: root.label;
+            color: Theme.text-muted;
+            font-size: Theme.font-xs;
+            font-weight: 700;
+            font-family: Theme.font-mono;
+            letter-spacing: 0.5px;
+        }
+
+        Text {
+            text: root.value;
+            color: root.value-color;
+            font-size: Theme.font-xl;
+            font-weight: 700;
+            font-family: Theme.font-mono;
+        }
+
+        if root.subtext != "" : Text {
+            text: root.subtext;
+            color: Theme.text-subtle;
+            font-size: Theme.font-xs;
+            font-family: Theme.font-mono;
+        }
+    }
+}
+
+export component AlertBanner inherits Rectangle {
+    in-out property <string> text: "";
+    in-out property <string> level: "error"; // error, warning, success, info
+
+    out property <color> banner-color: level == "error" ? Theme.danger : (level == "warning" ? Theme.warning : (level == "success" ? Theme.success : Theme.info));
+    out property <color> banner-bg: level == "error" ? Theme.danger-subtle : Theme.accent-subtle;
+
+    background: root.banner-bg;
+    border-color: root.banner-color;
+    border-width: 1px;
+    border-radius: Theme.radius;
+    height: 38px;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        alignment: start;
+        spacing: 8px;
+
+        Text {
+            text: root.level == "error" ? "⚠" : (root.level == "warning" ? "!" : (root.level == "success" ? "✓" : "ℹ"));
+            color: root.banner-color;
+            font-size: Theme.font-sm;
+            font-weight: 700;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: root.text;
+            color: root.banner-color;
+            font-size: Theme.font-sm;
+            vertical-alignment: center;
+            font-family: Theme.font-mono;
+            overflow: elide;
+        }
+    }
+}
+
+export component StatusDot inherits Rectangle {
+    in-out property <color> dot-color: Theme.accent;
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background: root.dot-color;
+}

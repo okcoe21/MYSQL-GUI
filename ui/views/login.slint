@@ -1,0 +1,160 @@
+import { Theme } from "../theme.slint";
+import { PrimaryButton } from "../components/button.slint";
+import { TextInputBox, PasswordInputBox } from "../components/input.slint";
+import { AlertBanner } from "../components/card.slint";
+
+export component LoginView inherits Rectangle {
+    in-out property <string> host: "localhost";
+    in-out property <string> port: "3306";
+    in-out property <string> username: "root";
+    in-out property <string> password: "";
+    in-out property <bool> loading: false;
+    in-out property <string> error-message: "";
+
+    callback connect(string, string, string, string);
+
+    background: Theme.bg-base;
+
+    Flickable {
+        width: 100%;
+        height: 80%;
+        // content-height: Math.max(parent.height, card.preferred-height + 40px);
+
+        Rectangle {
+            width: 100%;
+            // height: Math.max(parent.height, card.preferred-height + 40px);
+
+            // Centered card
+            card := Rectangle {
+                width: 450px;
+                height: 500px;
+                background: Theme.bg-panel;
+                border-color: Theme.border;
+                border-width: 1px;
+                border-radius: Theme.radius;
+                // x: (parent.width - self.width) / 2;
+                // y: Math.max(20px, (parent.height - self.height) / 2);
+
+                VerticalLayout {
+                    padding: 32px;
+                    spacing: 16px;
+
+                    // Brand / Title
+            VerticalLayout {
+                        spacing: 5px;
+                        alignment: center;
+
+                        Text {
+                            text: "MySQL GUI";
+                            color: Theme.accent;
+                            font-size: Theme.font-xl;
+                            font-weight: 700;
+                            horizontal-alignment: center;
+                            font-family: Theme.font-mono;
+                        }
+
+                        Text {
+                            text: "Connect & Manage your MySQL server";
+                            color: Theme.text-muted;
+                            font-size: Theme.font-xs;
+                            horizontal-alignment: center;
+                            font-family: Theme.font-mono;
+                        }
+                    }
+
+                    if root.error-message != "": AlertBanner {
+                        text: root.error-message;
+                        level: "error";
+                    }
+
+                    // Form inputs
+            VerticalLayout {
+                        spacing: 15px;
+
+                        VerticalLayout {
+                            spacing: -10px;
+                            Text {
+                                text: "HOST";
+                                color: Theme.text-muted;
+                                font-size: Theme.font-xs;
+                                font-weight: 600;
+                                font-family: Theme.font-mono;
+                            }
+
+                            host_input := TextInputBox {
+                                text <=> root.host;
+                                placeholder: "localhost";
+                                enabled: !root.loading;
+                                accepted => { root.connect(root.host, root.port, root.username, root.password); }
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: -10px;
+                            Text {
+                                text: "PORT";
+                                color: Theme.text-muted;
+                                font-size: Theme.font-xs;
+                                font-weight: 600;
+                                font-family: Theme.font-mono;
+                            }
+
+                            port_input := TextInputBox {
+                                text <=> root.port;
+                                placeholder: "3306";
+                                enabled: !root.loading;
+                                accepted => { root.connect(root.host, root.port, root.username, root.password); }
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: -10px;
+                            Text {
+                                text: "USERNAME";
+                                color: Theme.text-muted;
+                                font-size: Theme.font-xs;
+                                font-weight: 600;
+                                font-family: Theme.font-mono;
+                            }
+
+                            user_input := TextInputBox {
+                                text <=> root.username;
+                                placeholder: "root";
+                                enabled: !root.loading;
+                                accepted => { root.connect(root.host, root.port, root.username, root.password); }
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: -10px;
+                            Text {
+                                text: "PASSWORD";
+                                color: Theme.text-muted;
+                                font-size: Theme.font-xs;
+                                font-weight: 600;
+                                font-family: Theme.font-mono;
+                            }
+
+                            pass_input := PasswordInputBox {
+                                text <=> root.password;
+                                placeholder: "* * * * * *";
+                                enabled: !root.loading;
+                                accepted => { root.connect(root.host, root.port, root.username, root.password); }
+                            }
+                        }
+                    }
+
+                    PrimaryButton {
+                        text: "Connect";
+                        loading: root.loading;
+                        enabled: !root.loading;
+                        clicked => {
+                            root.connect(root.host, root.port, root.username, root.password);
+                        }
+                    }
+                }
+            }
+        }
+        Rectangle { }
+    }
+}
