@@ -4,6 +4,18 @@ All notable changes to MySQL GUI are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [3.0.6] — 2026-10-03
+
+### Added
+- **Offline Rule-Based Query Explainer Engine (`src/explain.rs`):** Added a pure, zero-dependency Rust module translating SQL into plain English summaries, clause breakdowns, and risk warnings. Supports `SELECT` (columns, `FROM`, `JOIN`s, `WHERE`, `GROUP BY`, `HAVING`, `ORDER BY`, `LIMIT`), `INSERT`, `UPDATE`, `DELETE`, `CREATE TABLE`, `DROP`, `ALTER TABLE`, and `TRUNCATE`.
+- **Operator Translation & Clause Parsing:** Translates SQL operators (`=`, `!=`/`<>`, `>`, `<`, `>=`, `<=`, `LIKE`, `IN`, `BETWEEN`, `IS NULL`, `IS NOT NULL`, `AND`/`OR`) into natural English. Handles parenthesized subqueries, string literals containing keywords, and multiple statements separated by semicolons.
+- **Risk & Safeguard Detection:** Automatically flags unbounded `DELETE` or `UPDATE` queries without `WHERE`, `DROP` statements, `TRUNCATE` operations, and unconstrained `SELECT *` without `LIMIT`.
+- **Collapsible Explanation UI Panel:** Added an interactive "💡 Explain" button in `ui/views/sql_editor.slint` toolbar with a collapsible details card featuring summary text, bulleted clause breakdowns, and styled `Theme.warning` alert cards.
+- **Controller & View Wiring:** Connected `on_explain_sql_query` and `on_clear_sql_query` in `src/app_controller.rs` and bound properties in `ui/app.slint`.
+- **Comprehensive Explainer Test Suite:** Added 19 new unit tests in `src/explain.rs` verifying clause extraction, risk warnings, lowercase inputs, string literals with keywords, comments (`--`, `#`, `/* ... */`), multiple statements, empty input, garbage resilience, and operator translation (50 total passing tests).
+
+---
+
 ## [3.0.5] — 2026-10-03
 
 ### Added

@@ -1,15 +1,15 @@
-# MySQL GUI — Project Migration & Status Report (v3.0.5)
+# MySQL GUI — Project Migration & Status Report (v3.0.6)
 
 **Date:** October 3, 2026  
 **Target:** Claude Context / Development Handoff  
 **Project:** `mysql-gui` (`/home/coes/Projects/MYSQL GUI`)  
-**Status:** Successfully Migrated, Security Hardened & Tested (31/31 Unit Tests Passing)  
+**Status:** Successfully Migrated, Security Hardened, Offline Query Explainer Added (50/50 Unit Tests Passing)  
 
 ---
 
 ## 1. Executive Summary
 
-The application underwent a complete architectural rewrite from a dual Next.js 15 / Tauri v2 hybrid into a **100% native Rust + Slint desktop application** (v3.0.0). Following the migration, an exhaustive security audit of all SQL-building paths and input handling was conducted, resolving all High, Medium, and Low-severity vulnerabilities (v3.0.1 – v3.0.3). 
+The application underwent a complete architectural rewrite from a dual Next.js 15 / Tauri v2 hybrid into a **100% native Rust + Slint desktop application** (v3.0.0). Following the migration, an exhaustive security audit of all SQL-building paths and input handling was conducted, resolving all High, Medium, and Low-severity vulnerabilities (v3.0.1 – v3.0.3). In v3.0.4 – v3.0.6, the Visual Query Builder was wired with live SQL generation, login error reporting was connected, transport encryption toggles and indicators were added, and an offline, rule-based SQL query explainer was introduced with clause-by-clause breakdowns and risk detection. 
 
 All legacy JavaScript, TypeScript, React, Next.js, and Tauri v2 code has been removed. The repository is now a single-crate, hardened Rust application with instant cold startup, zero web/Chromium runtime dependencies, comprehensive SQL injection prevention, automatic credential redaction, and hardware-accelerated declarative UI rendering.
 
@@ -37,6 +37,7 @@ All legacy JavaScript, TypeScript, React, Next.js, and Tauri v2 code has been re
 * **[`src/main.rs`](file:///home/coes/Projects/MYSQL%20GUI/src/main.rs):** Entry point. Initializes Slint window (`AppWindow`), sets up Tokio runtime, and attaches controller.
 * **[`src/app_controller.rs`](file:///home/coes/Projects/MYSQL%20GUI/src/app_controller.rs):** Central event coordinator. Connects Slint callbacks to async SQLx database operations. Hardened against DDL breakout and identifier manipulation.
 * **[`src/state.rs`](file:///home/coes/Projects/MYSQL%20GUI/src/state.rs):** Thread-safe application state (`Arc<Mutex<AppState>>`) holding the active SQLx connection pool and connection session metadata.
+* **[`src/explain.rs`](file:///home/coes/Projects/MYSQL%20GUI/src/explain.rs):** Offline, rule-based SQL query explainer. Translates arbitrary SQL into plain English summaries, clause breakdowns, and risk warnings (unbounded updates/deletes, unconstrained SELECT *, drops, truncates) without network or database connection.
 * **[`src/db/`](file:///home/coes/Projects/MYSQL%20GUI/src/db/):** Modular SQL operations:
   * `auth.rs`: Defensive connection handling via `MySqlConnectOptions`, transport encryption detection (`is_encrypted`), error message credential scrubbing.
   * `database.rs`: Database listing, creation, and dropping.
@@ -61,7 +62,7 @@ All legacy JavaScript, TypeScript, React, Next.js, and Tauri v2 code has been re
   * `db_overview.slint`: Database stats, table summaries, quick actions.
   * `table_data.slint`: High-performance paginated data grid, limit selector (25/50/100), column sorting.
   * `structure_view.slint`: Column type, collation, nullability, keys, and default values.
-  * `sql_editor.slint`: Interactive query console, execution time, tabular output.
+  * `sql_editor.slint`: Interactive query console, execution time, tabular output, and collapsible offline rule-based query explainer panel with danger warning cards.
   * `history_view.slint`: Query execution log with favorites and search.
   * `query_builder.slint`: Visual SQL query generator.
   * `create_table_view.slint`: Column schema builder and DDL generator.
@@ -103,11 +104,12 @@ All legacy JavaScript, TypeScript, React, Next.js, and Tauri v2 code has been re
 ## 6. Current Verification & Build Status
 
 - [x] **Compilation:** `cargo check` and `cargo build` pass with 0 errors and 0 warnings.
-- [x] **Unit Testing:** `cargo test` passes 31/31 tests covering sanitization, boundary checks, secret redacting, visual query builder generation, and transport SSL mode/error mapping.
+- [x] **Unit Testing:** `cargo test` passes 50/50 tests covering sanitization, boundary checks, secret redacting, visual query builder generation, transport SSL mode/error mapping, and full SQL query explanation & risk detection.
+- [x] **Offline Query Explainer:** Pure Rust engine with clause breakdown (SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, TRUNCATE) and danger detection (unbounded modifications, DROP, TRUNCATE, unconstrained SELECT *).
 - [x] **Transport Security:** "Require SSL" switch on login enforcing `MySqlSslMode::Required`; active encryption status indicator (`SSL` vs `NOT ENCRYPTED`) with hover tooltips in `TopBar`.
 - [x] **Dead UI Callbacks Fixed:** Visual Query Builder condition filters generate live safe SQL; login connection errors propagate to `AlertBanner`.
 - [x] **Identifier Boundary:** 64-character MySQL identifier limit strictly enforced.
-- [x] **Versioning:** Synchronized to `3.0.5` across `Cargo.toml`, `Cargo.lock`, and `README.md`.
+- [x] **Versioning:** Synchronized to `3.0.6` across `Cargo.toml`, `Cargo.lock`, and `README.md`.
 - [x] **CI/CD:** Multi-platform GitHub Actions workflows active for Linux, Windows, and macOS native builds.
 - [x] **Git Tracking:** Clean working tree with detailed conventional commit history.
 

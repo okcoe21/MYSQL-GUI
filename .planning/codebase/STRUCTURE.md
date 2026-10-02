@@ -16,6 +16,7 @@
 │   ├── main.rs              # Application entry point, window instantiation, event loop
 │   ├── app_controller.rs    # Controller binding Slint UI callbacks to async SQLx ops
 │   ├── state.rs             # Thread-safe global state (AppState with MySqlPool)
+│   ├── explain.rs           # Offline rule-based SQL query explainer & risk detector
 │   └── db/                  # Modular SQLx database services
 │       ├── mod.rs           # DB module exports
 │       ├── auth.rs          # MySQL connection authentication and keyring handling

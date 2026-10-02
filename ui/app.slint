@@ -111,6 +111,10 @@ export component AppWindow inherits Window {
     in-out property <int> sql-affected-rows: -1;
     in-out property <[string]> sql-result-columns: [];
     in-out property <[SqlResultRow]> sql-result-rows: [];
+    in-out property <bool> sql-explain-open: false;
+    in-out property <string> sql-explain-summary: "";
+    in-out property <[string]> sql-explain-lines: [];
+    in-out property <[string]> sql-explain-warnings: [];
 
     // History
     in-out property <[HistoryDisplayItem]> history-items: [];
@@ -198,6 +202,7 @@ export component AppWindow inherits Window {
     callback refresh-structure();
     callback run-sql-query(string);
     callback clear-sql-query();
+    callback explain-sql-query(string);
     callback prev-table-page();
     callback next-table-page();
     callback set-table-limit(int);
@@ -536,8 +541,13 @@ export component AppWindow inherits Window {
                         affected-rows: root.sql-affected-rows;
                         result-columns: root.sql-result-columns;
                         result-rows: root.sql-result-rows;
+                        explain-open <=> root.sql-explain-open;
+                        explain-summary: root.sql-explain-summary;
+                        explain-lines: root.sql-explain-lines;
+                        explain-warnings: root.sql-explain-warnings;
                         run-query(q) => { root.run-sql-query(q); }
                         clear-query => { root.clear-sql-query(); }
+                        explain-query(q) => { root.explain-sql-query(q); }
                     }
 
                     if root.active-view == "history" : history_view := HistoryViewView {

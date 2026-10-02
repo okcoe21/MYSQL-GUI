@@ -19,8 +19,14 @@ export component SqlEditorView inherits Rectangle {
     in-out property <[string]> result-columns: [];
     in-out property <[SqlResultRow]> result-rows: [];
 
+    in-out property <bool> explain-open: false;
+    in-out property <string> explain-summary: "";
+    in-out property <[string]> explain-lines: [];
+    in-out property <[string]> explain-warnings: [];
+
     callback run-query(string);
     callback clear-query();
+    callback explain-query(string);
 
     background: Theme.bg-base;
 
@@ -86,7 +92,22 @@ export component SqlEditorView inherits Rectangle {
                     height: 26px;
                     clicked => {
                         root.query = "";
+                        root.explain-open = false;
                         root.clear-query();
+                    }
+                }
+
+                SecondaryButton {
+                    text: root.explain-open ? "💡 Hide Explain" : "💡 Explain";
+                    custom-font-size: Theme.font-xs;
+                    height: 26px;
+                    enabled: root.query != "";
+                    clicked => {
+                        if root.explain-open {
+                            root.explain-open = false;
+                        } else {
+                            root.explain-query(root.query);
+                        }
                     }
                 }
 
@@ -107,6 +128,118 @@ export component SqlEditorView inherits Rectangle {
             height: 160px;
             sql_input := MultilineInputBox {
                 placeholder: "Enter SQL statement (e.g. SELECT * FROM users LIMIT 10;)...";
+            }
+        }
+
+        // Collapsible Query Explain Panel
+        if root.explain-open : Rectangle {
+            background: Theme.bg-panel;
+            border-color: Theme.border;
+            border-width: 1px;
+            border-radius: Theme.radius;
+
+            VerticalLayout {
+                padding: 12px;
+                spacing: 8px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+
+                    Text {
+                        text: "QUERY EXPLANATION (OFFLINE)";
+                        color: Theme.accent;
+                        font-size: Theme.font-xs;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                        vertical-alignment: center;
+                    }
+
+                    Rectangle {
+                        width: 20px;
+                        height: 20px;
+                        border-radius: Theme.radius;
+                        background: close_touch.has-hover ? Theme.bg-hover : transparent;
+
+                        Text {
+                            text: "✕";
+                            color: Theme.text-muted;
+                            font-size: Theme.font-xs;
+                            font-weight: 700;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+
+                        close_touch := TouchArea {
+                            clicked => {
+                                root.explain-open = false;
+                            }
+                        }
+                    }
+                }
+
+                // Summary
+                Text {
+                    text: root.explain-summary;
+                    color: Theme.foreground;
+                    font-size: Theme.font-sm;
+                    font-weight: 600;
+                    font-family: Theme.font-mono;
+                    wrap: word-wrap;
+                }
+
+                // Clause Breakdown Lines
+                if root.explain-lines.length > 0 : VerticalLayout {
+                    spacing: 4px;
+                    for line in root.explain-lines: HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "•";
+                            color: Theme.accent;
+                            font-size: Theme.font-xs;
+                            font-family: Theme.font-mono;
+                            vertical-alignment: top;
+                        }
+                        Text {
+                            text: line;
+                            color: Theme.text-muted;
+                            font-size: Theme.font-xs;
+                            font-family: Theme.font-mono;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+
+                // Warnings
+                if root.explain-warnings.length > 0 : VerticalLayout {
+                    spacing: 4px;
+                    for warn in root.explain-warnings: Rectangle {
+                        background: Theme.bg-header;
+                        border-color: Theme.warning;
+                        border-width: 1px;
+                        border-radius: Theme.radius;
+
+                        HorizontalLayout {
+                            padding: 8px;
+                            spacing: 8px;
+                            Text {
+                                text: "⚠";
+                                color: Theme.warning;
+                                font-size: Theme.font-sm;
+                                font-weight: 700;
+                                vertical-alignment: center;
+                            }
+                            Text {
+                                text: warn;
+                                color: Theme.warning;
+                                font-size: Theme.font-xs;
+                                font-weight: 600;
+                                font-family: Theme.font-mono;
+                                vertical-alignment: center;
+                                wrap: word-wrap;
+                            }
+                        }
+                    }
+                }
             }
         }
 

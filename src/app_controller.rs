@@ -443,6 +443,37 @@ impl AppController {
             });
         }
 
+        {
+            let weak = weak.clone();
+            app.on_explain_sql_query(move |sql_query| {
+                let sql = sql_query.to_string();
+                let exp = crate::explain::explain_query(&sql);
+                if let Some(app) = weak.upgrade() {
+                    app.set_sql_explain_summary(exp.summary.into());
+                    let lines: Vec<SharedString> = exp.lines.into_iter().map(Into::into).collect();
+                    app.set_sql_explain_lines(Rc::new(VecModel::from(lines)).into());
+                    let warnings: Vec<SharedString> = exp.warnings.into_iter().map(Into::into).collect();
+                    app.set_sql_explain_warnings(Rc::new(VecModel::from(warnings)).into());
+                    app.set_sql_explain_open(true);
+                }
+            });
+        }
+
+        {
+            let weak = weak.clone();
+            app.on_clear_sql_query(move || {
+                if let Some(app) = weak.upgrade() {
+                    app.set_sql_query_text("".into());
+                    app.set_sql_message("".into());
+                    app.set_sql_error_message("".into());
+                    app.set_sql_explain_open(false);
+                    app.set_sql_explain_summary("".into());
+                    app.set_sql_explain_lines(Rc::new(VecModel::from(vec![])).into());
+                    app.set_sql_explain_warnings(Rc::new(VecModel::from(vec![])).into());
+                }
+            });
+        }
+
         // 7. Table Browser controls
         {
             let weak = weak.clone();

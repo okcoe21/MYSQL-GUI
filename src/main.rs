@@ -3,6 +3,7 @@ slint::include_modules!();
 mod state;
 mod db;
 mod app_controller;
+mod explain;
 
 use std::sync::Arc;
 use state::AppState;

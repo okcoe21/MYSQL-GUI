@@ -1,13 +1,13 @@
-# MySQL GUI (v3.0.5)
+# MySQL GUI (v3.0.6)
 
 A high-performance, native MySQL desktop client built with **Rust** and **Slint UI**.  
 Zero Electron. Zero Node.js. Zero web runtime overhead. Just pure native speed and direct SQL execution.
 
-![Version](https://img.shields.io/badge/version-3.0.5-blue)
+![Version](https://img.shields.io/badge/version-3.0.6-blue)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange)
 ![UI](https://img.shields.io/badge/UI-Slint%201.18-green)
 ![Database](https://img.shields.io/badge/Database-MySQL%20%2F%20MariaDB-4479A1)
-![Tests](https://img.shields.io/badge/Tests-31%20Passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-50%20Passing-brightgreen)
 
 ---
 
@@ -30,11 +30,12 @@ Zero Electron. Zero Node.js. Zero web runtime overhead. Just pure native speed a
 
 ### SQL Query Console & Security
 - **Custom SQL Execution:** Execute custom queries, DDL, batch updates, and transactions.
+- **Offline Rule-Based Query Explainer:** Translate arbitrary SQL queries into plain English summaries with clause-by-clause breakdowns (SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, TRUNCATE) and risk warnings (unbounded updates/deletes, unconstrained SELECT *, drops) without requiring any network or database connection.
 - **Execution Timeout Guard:** Background 60-second execution timeouts to prevent hung threads on long-running queries.
 - **Destructive Operation Prompts:** UX confirmation guard identifying `DROP`, `TRUNCATE`, `DELETE`, `ALTER`, and unbounded `UPDATE` operations before execution.
 - **Query Results Table:** Paginated column and row visualization with execution duration telemetry.
 - **Sanitized Query History:** Local query history with automatic credential redaction (`IDENTIFIED BY`, `PASSWORD(...)`), one-click re-run, favorites, and timestamping.
-- **Presets Toolbar:** Fast shortcuts for `SELECT *`, count checks, and query formatting.
+- **Presets Toolbar:** Fast shortcuts for `SELECT *`, count checks, query explanation, and query formatting.
 
 ### Developer Tools & Monitoring
 - **Visual Query Builder:** Construct complex queries visually by selecting tables and conditions with live safe SQL generation.
