@@ -1,66 +1,77 @@
 # Architecture
 
-**Analysis Date:** 2026-04-01
+**Analysis Date:** 2026-10-03 (v3.0.0 Native Rust + Slint Rewrite)
 
 ## System Overview
 
-The MySQL GUI is a **Next.js 14 Web Application** using the **App Router** architecture. It follows a classic Single Page Application (SPA) pattern within a specific dashboard route, where state transitions are managed by React hooks.
+The MySQL GUI is a **high-performance native desktop application** built with **Rust** and **Slint UI 1.18**. The application operates as a single compiled binary without any web runtime or browser abstraction. 
 
-## Frontend Architecture
-
-**Component Structure:**
-- **Layout:** `app/layout.tsx` - Global providers and base HTML structure.
-- **Dashboard Orchestrator:** `app/dashboard/page.tsx` - The main state container. It manages:
-    - Current database selection.
-    - Current table selection.
-    - Current active view (e.g., browse, structure, SQL editor).
-- **Sub-Views:** Components like `TableData`, `SqlEditor`, and `DbOverview` are rendered conditionally based on the orchestrator's state.
-- **Navigation:** `Sidebar` handles database and object selection through callbacks.
-
-**State Management:**
-- **Local State:** Uses standard React `useState` for UI transitions.
-- **Refresh Sync:** Incorporates a `refreshKey` state incremented in parents (like `page.tsx` on Mock Data generation success) to trigger `useEffect` re-fetches in child data tables (`TableData.tsx`).
-- **Context:** `ThemeProvider` manages UI theme.
-- **Server Communication:** Standard `fetch` calls to Next.js API routes.
-
-## Backend Architecture (API Layer)
-
-**Pattern:** Route Handlers (`app/api/*/route.ts`)
-- The backend is a thin adapter between the frontend and the MySQL server.
-- **Statelessness:** Connection details are *not* stored on the server disk; they are extracted from the user's JWT session.
-- **Database Compatibility:** Fallback handlers exist for metadata endpoints. For example, if retrieval of stored procedures/functions fails due to legacy MariaDB `mysql.proc` schema version mismatches (e.g. column count errors), the route handler catches the exception and falls back to a sequence of `SHOW STATUS` and `SHOW CREATE` statements, normalizing the output payload.
-- **Execution Flow:**
-    1. Authenticate session (`getSession`).
-    2. Extract connection params (host, user, etc.).
-    3. (Optional) Sanitize/Check query for destructive commands.
-    4. Create `mysql2` connection.
-    5. Execute and return results.
-    6. Close connection.
-
-## Security Architecture
-
-**Session Management:**
-- Uses **Encrypted JWTs** stored in `httpOnly` cookies.
-- This ensures that database credentials are never exposed to the client-side JavaScript.
-
-**Query Safety:**
-- **Destructive Detection:** `lib/sanitize.ts` detects SQL commands like `DROP`, `TRUNCATE`, and `DELETE`.
-- **Confirmation Flow:** API routes require a `confirmed: true` flag for destructive queries, prompting the UI to show a confirmation modal.
-
-## Data Flow
-
-```mermaid
-graph TD
-    Client[Browser UI] -->|Fetch + Session Cookie| API[Next.js Route Handlers]
-    API -->|Decrypt JWT| Session[Session Payload]
-    Session -->|Credentials| DB_Access[lib/db.ts]
-    DB_Access -->|mysql2| MySQL[Remote MySQL Server]
-    MySQL -->|Results| DB_Access
-    DB_Access -->|JSON| API
-    API -->|Response| Client
-```
+The architecture cleanly decouples:
+1. **Slint Declarative UI (`ui/`):** Hardware-accelerated layouts, property bindings, and user event dispatchers.
+2. **Controller & State Coordinator (`src/app_controller.rs` & `src/state.rs`):** Bidirectional bridge forwarding UI events to async background tasks and pushing typed models back into the Slint event loop.
+3. **Database Engine (`src/db/`):** Asynchronous, connection-pooled MySQL operations managed by `sqlx`.
 
 ---
 
-*Architecture analysis: 2026-04-01*
-*Update after changing system design*
+## Frontend Architecture (`ui/`)
+
+### Window & View Routing
+* **Root Container:** [`ui/app.slint`](file:///home/coes/Projects/MYSQL%20GUI/ui/app.slint) defines `AppWindow`.
+* **View Router:** Conditionals dynamically mount the login view (`!is-logged-in`) or the dashboard workspace (`is-logged-in`).
+* **Dashboard Split:**
+  * **TopBar:** Server badge, dynamic database/table breadcrumbs, theme switcher, and logout.
+  * **Sidebar:** Tree of databases, tables, and views with live count badges and action buttons.
+  * **Right Work Area:** Dynamic tab bar for current context (Structure, Data, SQL Editor, Operations, Diagram) and view container mounting one of 18 views from `ui/views/`.
+
+### Design System & Components
+* **Design Tokens:** [`ui/theme.slint`](file:///home/coes/Projects/MYSQL%20GUI/ui/theme.slint) centralizes the terminal-core dark palette (`#0d0d0d`, `#161616`, `#222222`), electric green accent (`#00ff9d`), typography, and border metrics.
+* **Component Library:** [`ui/components/`](file:///home/coes/Projects/MYSQL%20GUI/ui/components/) contains reusable widgets (`button.slint`, `card.slint`, `dialog.slint`, `input.slint`).
+
+---
+
+## Backend Architecture (`src/`)
+
+### Entry Point & Lifecycle
+* **[`src/main.rs`](file:///home/coes/Projects/MYSQL%20GUI/src/main.rs):**
+  Instantiates `AppWindow::new()`, wraps state in `Arc<Mutex<AppState>>`, invokes `AppController::setup()`, and starts the Slint main event loop (`window.run()`).
+
+### Controller & Dispatcher
+* **[`src/app_controller.rs`](file:///home/coes/Projects/MYSQL%20GUI/src/app_controller.rs):**
+  Registers closures for every Slint callback (`connect`, `select_database`, `select_table`, `run_query`, `prev_page`, `next_page`, etc.).
+  Operations that touch I/O or the database are dispatched via `tokio::spawn`.
+  Results are safely pushed back onto the GUI thread via `slint::invoke_from_event_loop`.
+
+### Modular Database Services (`src/db/`)
+* **`auth.rs`:** Connection string construction, SSL options, ping verification, and OS keyring storage via `keyring-rs`.
+* **`database.rs`:** Catalog querying (`SHOW DATABASES`), database creation, and drop operations.
+* **`table.rs`:** Table extraction, row count approximations, and column schema introspection (`information_schema.COLUMNS`).
+* **`data.rs`:** Paginated row queries with limit/offset, column-based sorting, and inline primary-key row deletion.
+* **`query.rs`:** Execution of raw user SQL queries, multi-statement batching, duration telemetry, and tabular column/row mapping.
+* **`server.rs`:** Live metrics (`SHOW GLOBAL STATUS`) and process list retrieval (`SHOW FULL PROCESSLIST`).
+* **`history.rs`:** Disk-persistent query log with favorite toggles.
+* **`sanitize.rs`:** Identifier backtick escaping and destructive keyword detection.
+
+---
+
+## Security Architecture
+
+* **Zero Plaintext Secrets on Disk:** Database credentials (user/password/host/port) are encrypted directly in the OS Keyring via `keyring-rs` (Linux SecretService, macOS Keychain, Windows Credential Manager).
+* **Destructive Operation Guard:** SQL queries containing `DROP`, `TRUNCATE`, or `DELETE` trigger a modal confirmation dialog (`ConfirmDialog` in `app.slint`) before execution.
+* **Identifier Escaping:** All dynamically constructed table/column queries use `sanitize_identifier()` to wrap inputs in backticks and escape embedded quotes.
+
+---
+
+## Data Flow Diagram
+
+```mermaid
+flowchart TD
+    UI[Slint Declarative UI<br/>ui/app.slint & views] -->|User Interaction / Callbacks| Ctrl[App Controller<br/>src/app_controller.rs]
+    Ctrl -->|tokio::spawn| Async[Tokio Async Worker]
+    Async -->|Acquire Pool Connection| State[App State<br/>src/state.rs]
+    Async -->|Execute Operations| DB[Modular DB Services<br/>src/db/*]
+    DB -->|SQLx Queries| MySQL[(MySQL / MariaDB Server)]
+    MySQL -->|Raw Rows / ResultSets| DB
+    DB -->|Typed Rust Models| Async
+    Async -->|slint::invoke_from_event_loop| UI_Thread[Slint Event Loop]
+    UI_Thread -->|Update Slint Models / Properties| UI
+```

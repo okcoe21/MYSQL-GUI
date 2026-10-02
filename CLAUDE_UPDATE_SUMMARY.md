@@ -15,16 +15,16 @@ The application underwent a complete architectural rewrite from a dual Next.js 1
 
 ## 2. Tech Stack Migration Matrix
 
-| Layer | Previous Stack (v1 / v2) | Current Stack (v3.0.0) |
-|---|---|---|
-| **Frontend Framework** | Next.js 15, React 18 | **Slint UI 1.18** |
-| **Styling & Design System** | Tailwind CSS 3 | **Slint Declarative Styles (`ui/theme.slint`)** |
-| **Desktop Shell** | Tauri v2 (WebKitGTK / WebView2) | **Native Slint Hardware Engine (OpenGL / Skia / Software)** |
-| **Language** | TypeScript / JavaScript (Node.js) | **Pure Rust (2021 edition)** |
-| **Database Driver** | MySQL2 / SQLx (Tauri backend) | **SQLx 0.8 (async MySQL with tokio-native-tls)** |
-| **Async Runtime** | Node.js Event Loop + Tokio | **Tokio 1.x (multi-threaded)** |
-| **Secret Storage** | OS Keyring (Tauri IPC) | **Native `keyring-rs` (SecretService / Keychain)** |
-| **File Dialogs** | Tauri Dialog Plugin | **Native `rfd` (Rust File Dialogs)** |
+| Layer                       | Previous Stack (v1 / v2)          | Current Stack (v3.0.0)                                      |
+| -----------------------------| -----------------------------------| -------------------------------------------------------------|
+| **Frontend Framework**      | Next.js 15, React 18              | **Slint UI 1.18**                                           |
+| **Styling & Design System** | Tailwind CSS 3                    | **Slint Declarative Styles (`ui/theme.slint`)**             |
+| **Desktop Shell**           | Tauri v2 (WebKitGTK / WebView2)   | **Native Slint Hardware Engine (OpenGL / Skia / Software)** |
+| **Language**                | TypeScript / JavaScript (Node.js) | **Pure Rust (2021 edition)**                                |
+| **Database Driver**         | MySQL2 / SQLx (Tauri backend)     | **SQLx 0.8 (async MySQL with tokio-native-tls)**            |
+| **Async Runtime**           | Node.js Event Loop + Tokio        | **Tokio 1.x (multi-threaded)**                              |
+| **Secret Storage**          | OS Keyring (Tauri IPC)            | **Native `keyring-rs` (SecretService / Keychain)**          |
+| **File Dialogs**            | Tauri Dialog Plugin               | **Native `rfd` (Rust File Dialogs)**                        |
 
 ---
 

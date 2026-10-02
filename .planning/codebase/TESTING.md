@@ -1,33 +1,43 @@
-# Testing
+# Testing Strategy
 
-**Analysis Date:** 2026-04-01
+**Analysis Date:** 2026-10-03 (v3.0.0 Native Rust + Slint Rewrite)
 
 ## Current Status
 
-**Coverage:** 0%
-- No automated tests found in the project.
-- No `tests/` directory or testing configurations (Jest, Vitest, Playwright) present.
-
-## Testing Strategy (Recommendations)
-
-**Unit Testing:**
-- **Targets:** `lib/sanitize.ts`, `lib/db.ts`, `lib/session.ts`.
-- **Recommendation:** Use **Vitest** for fast, local unit tests of business logic.
-
-**Integration Testing:**
-- **Targets:** Next.js Route Handlers (`app/api/*`).
-- **Recommendation:** Use **Supertest** or similar tools to mock HTTP requests and verify database interactions.
-
-**End-to-End (E2E) Testing:**
-- **Targets:** Dashboard workflows (Login -> Select DB -> Query).
-- **Recommendation:** Use **Playwright** to automate user interactions in the browser and verify the "Browse" and "SQL Editor" views.
-
-## Running Tests
-
-**None:**
-- No test scripts defined in `package.json`.
+- **Build Check:** `cargo check` passes with 0 warnings/errors.
+- **Test Suite:** `cargo test` executes the Rust standard test harness.
+- **Coverage:** Unit testing coverage for `src/db/` modules is in progress.
 
 ---
 
-*Testing analysis: 2026-04-01*
-*Update after implementing test suites*
+## Recommended Testing Architecture
+
+### 1. Unit Tests (`cargo test`)
+* **Targets:**
+  * `src/db/sanitize.rs`: Verify backtick escaping, quote handling, and detection of destructive commands (`DROP`, `DELETE`, `TRUNCATE`).
+  * `src/db/models.rs`: Verify typed row mapping, data type formatting, and null cell handling.
+  * SQL builders: Test DDL generation logic in `create_table_view` and `query_builder`.
+
+### 2. Integration Tests
+* **Targets:** Connection pooling, query execution, and database schema introspection.
+* **Approach:** Use `testcontainers` or a local disposable MySQL test container (e.g., `mysql:8.0` / `mariadb:latest`).
+* **Validation:** Test that stored procedures, views, and complex foreign key relations introspect accurately without panics.
+
+### 3. Slint UI Headless Testing
+* **Targets:** Callback dispatching and property updates.
+* **Tooling:** Slint provides `slint::testing` helpers to simulate clicks, touch areas, and keyboard inputs programmatically in CI without an active X11 display.
+
+---
+
+## Running Verification Commands
+
+```bash
+# Verify compiler validity
+cargo check --verbose
+
+# Run all automated tests
+cargo test --verbose
+
+# Run live UI preview
+slint-viewer ui/app.slint
+```

@@ -1,47 +1,31 @@
-# Technical Concerns
+# Technical Concerns & Roadmap
 
-**Analysis Date:** 2026-04-01
+**Analysis Date:** 2026-10-03 (v3.0.0 Native Rust + Slint Rewrite)
 
-## Critical Technical Debt
+## Current Technical Debt & Risks
 
-**Absolute Absence of Tests:**
-- The project has no unit, integration, or E2E tests (`0% coverage`).
-- **Risk:** New features could break core MySQL functionality (e.g., table deletion, row editing) without warning.
+### 1. Test Coverage
+- **Status:** Automated test suite is currently minimal (`cargo check` and `cargo test` pass, but specific unit tests for all `src/db/` modules need expansion).
+- **Risk:** Regressions in complex SQL parsing, column mapping, or identifier sanitization could go unnoticed.
+- **Remediation:** Add automated unit tests for `src/db/sanitize.rs`, `src/db/models.rs`, and query builders.
 
-**Version Mismatch:**
-- **README** mentions Next.js 15, but `package.json` specifies Next.js 14.2.15.
-- **Risk:** Potential confusion during deployment or upgrades; reliance on Next.js 14-specific behaviors.
+### 2. Slint Layout Clamping Behavior
+- **Context:** Slint's Ahead-Of-Time (AOT) layout generator computes `max_height` as the sum of child max heights if all children are fixed.
+- **Risk:** Adding new fixed-height children to a view inside a `Flickable` without an unconstrained spacer can accidentally re-clamp the parent `HorizontalLayout` and freeze the window height.
+- **Remediation:** Always keep a trailing `Rectangle { }` inside `VerticalLayout` containers that are meant to fill scrollable viewports.
 
-## Security Concerns
+### 3. File Dialog Pipeline
+- **Context:** Native file dialogs (`rfd`) are imported in `Cargo.toml`.
+- **Status:** File picker integration needs to be wired directly into `export_view.slint` and `import_view.slint` so users can choose exact file locations on disk.
 
-**Basic Destructive Query Detection:**
-- `lib/sanitize.ts` tracks strings (`DROP`, `DELETE`, etc.) but doesn't parse the SQL AST.
-- **Risk:** Complex queries with these strings in comments or values might trigger false alarms, and obfuscated commands might bypass it.
-
-**Session Secret Handling:**
-- `process.env.SESSION_SECRET` has a hardcoded default: `"default-secret-key-change-it-in-production"`.
-- **Risk:** If not configured correctly in the `.env.local` file, sessions are vulnerable to tampering.
-
-## Performance & Scalability
-
-**Connection on Every Request:**
-- `lib/db.ts` creates a *new connection* for every query and closes it immediately.
-- **Risk:** Heavy overhead for multiple small queries (e.g., browsing a table with 50+ rows if pagination is high); no connection pooling across requests.
-- **Benefit:** Simplifies stateless management in a multi-user context.
-
-**Pagination Limitations:**
-- Standard `mysql2` is used for queries; large tables might suffer from basic `OFFSET` pagination without cursor-based optimizations.
-
-## Fragility & Bugs
-
-**Empty Identifier Scope:**
-- `sanitizeIdentifier` throws an error if `name` is empty.
-- **Risk:** Some MySQL commands like `USE` might not need backticks on all identifiers; needs careful integration.
-
-**Mock Data Generation:**
-- Custom generator `MockDataView.tsx` might be fragile relative to complex table constraints (e.g., unique indices, foreign keys).
+### 4. Connection Pool & Reconnect Lifecycles
+- **Context:** `sqlx::MySqlPool` manages async connections.
+- **Risk:** Server timeouts (e.g., MySQL `wait_timeout`) or network drops when idle might cause a query to fail on stale connections.
+- **Remediation:** Ensure pool options configure `idle_timeout` and `test_before_acquire` in `src/db/auth.rs`.
 
 ---
 
-*Concern analysis: 2026-04-01*
-*Update after addressing major debt*
+## Security Considerations
+
+- **Keyring Reliability Across Linux Environments:** While Windows Credential Manager and macOS Keychain are universal, headless Linux servers or lightweight window managers without DBus/SecretService daemons (like `gnome-keyring` or `kwallet`) might require a fallback.
+- **SQL Injection Prevention:** Continue enforcing `sanitize_identifier()` for all identifier names and using parameterized bindings for values.
