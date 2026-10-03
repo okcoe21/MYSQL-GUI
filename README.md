@@ -1,13 +1,13 @@
-# MySQL GUI (v3.0.9)
+# MySQL GUI (v3.1.0)
 
 A high-performance, native MySQL desktop client built with **Rust** and **Slint UI**.  
 Zero Electron. Zero Node.js. Zero web runtime overhead. Just pure native speed and direct SQL execution.
 
-![Version](https://img.shields.io/badge/version-3.0.9-blue)
+![Version](https://img.shields.io/badge/version-3.1.0-blue)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange)
 ![UI](https://img.shields.io/badge/UI-Slint%201.18-green)
 ![Database](https://img.shields.io/badge/Database-MySQL%20%2F%20MariaDB-4479A1)
-![Tests](https://img.shields.io/badge/Tests-85%20Passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-96%20Passing-brightgreen)
 
 ---
 
@@ -32,6 +32,7 @@ Zero Electron. Zero Node.js. Zero web runtime overhead. Just pure native speed a
 - **Create Table Designer:** Visual column definition builder with type selection, constraints, and instant DDL generation.
 
 ### SQL Query Console & Security
+- **Multi-Query Editor Tabs:** Work with up to 8 independent SQL query tabs concurrently. Each tab preserves its own query text, execution results, telemetry, explain state, running indicator (`⏳`), and unsaved text marker (`•`). Isolated background execution routes results safely with monotonic IDs and epoch counters, preventing race conditions or cross-database bleed.
 - **Custom SQL Execution:** Execute custom queries, DDL, batch updates, and transactions.
 - **Offline Rule-Based Query Explainer:** Translate arbitrary SQL queries into plain English summaries with clause-by-clause breakdowns (SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, TRUNCATE) and risk warnings (unbounded updates/deletes, unconstrained SELECT *, drops) without requiring any network or database connection.
 - **Execution Timeout Guard:** Background 60-second execution timeouts to prevent hung threads on long-running queries.

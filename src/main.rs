@@ -4,6 +4,7 @@ mod state;
 mod db;
 mod app_controller;
 mod explain;
+mod tabs;
 
 use std::sync::Arc;
 use state::AppState;

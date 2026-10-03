@@ -4,6 +4,19 @@ All notable changes to MySQL GUI are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [3.1.0] — 2026-10-03
+
+### Added
+- **Multi-Query SQL Editor Tabs:** Added support for up to 8 concurrent SQL editor tabs in `ui/views/sql_editor.slint`. Each tab independently manages its own query text, execution results, error status, explain panel state, running indicator (`⏳`), and unsaved text marker (`•`).
+- **Pure `TabManager` (`src/tabs.rs`):** Implemented a dedicated tab lifecycle manager featuring monotonic tab IDs (`next_id` that is never reset or reused), epoch counters incremented on database resets, tab limit enforcement (max 8), and neighbor selection on tab closure. Closing the last remaining tab automatically generates a fresh empty tab (`Query N`), ensuring the editor never reaches an invalid zero-tab state.
+- **Epoch Fencing & Concurrency Isolation:** Captured `(tab_id, epoch)` snapshots for all in-flight queries. Results arriving for background tabs are silently stored in memory without disrupting the active tab UI, while stale-epoch results (from database switches or logouts) and results for closed tabs are automatically discarded.
+- **Destructive Query Snapshot Isolation:** Captures an immutable `(sql, tab_id, epoch)` snapshot upon detecting destructive statements (`DROP`, `TRUNCATE`, `DELETE`, `ALTER`). Execution runs strictly from the verified snapshot upon confirmation and aborts safely if the target tab was closed or the database connection was reset.
+- **Run Button Concurrency Guard:** Queries cannot be initiated on a tab that is already running (`is_running`), disabling the Run button in the UI and no-oping in the controller.
+- **Result Row Capping:** Automatically caps row storage per tab at 500 rows and annotates the status message when results are truncated.
+- **Comprehensive Tab Unit Test Suite:** Added 11 unit tests in `src/tabs.rs` verifying initial state, 8-tab limit enforcement, tab switching and text persistence, middle-tab closure and neighbor selection, last-tab auto-replacement, monotonic ID non-reuse across closes and resets, result routing across tab switches, stale-epoch discarding, closed-tab discarding, running-state run rejection, and row capping with notices (total 96 passing unit tests).
+
+---
+
 ## [3.0.9] — 2026-10-03
 
 ### Fixed & Hardened

@@ -6,15 +6,23 @@ use serde_json::Value;
 use crate::{
     AppWindow, ColumnInfoItem, CreateTableColumnItem, DatabaseItem, DbSummaryItem, DiagramTableItem,
     HistoryDisplayItem, InsertFieldItem, MockColumnBlueprint, ProcessItem, RelationItem, SlowLogItem,
-    SqlResultRow, TableRowData, TableStatItem, UserItem, TableInsertField,
+    SqlResultRow, SqlTabItem, TableRowData, TableStatItem, UserItem, TableInsertField,
 };
 use crate::state::SharedState;
+use crate::tabs::{TabManager, SqlResultData, ExplainData};
 use crate::db::{
     auth, database, table, data::{self, BindValue, DeleteRowSnapshot}, query, server, objects, maintenance,
     history::HistoryManager,
     models::TableColumnInfo,
     sanitize::{build_query_builder_select, sanitize_identifier, validate_column_length, is_destructive},
 };
+
+#[derive(Clone, Debug)]
+pub struct PendingDestructiveQuery {
+    pub sql: String,
+    pub tab_id: u64,
+    pub epoch: u64,
+}
 
 #[derive(Clone)]
 pub struct PendingCellEdit {
@@ -45,6 +53,7 @@ fn format_uptime(seconds: i64) -> String {
 pub struct AppController {
     state: SharedState,
     history_mgr: Arc<HistoryManager>,
+    pub tab_mgr: Arc<Mutex<TabManager>>,
     current_db: Arc<Mutex<String>>,
     current_table: Arc<Mutex<String>>,
     current_table_columns: Arc<Mutex<Vec<TableColumnInfo>>>,
@@ -62,7 +71,8 @@ pub struct AppController {
     export_format: Arc<Mutex<String>>,
     export_structure: Arc<Mutex<bool>>,
     export_data: Arc<Mutex<bool>>,
-    pending_destructive_query: Arc<Mutex<String>>,
+    pending_destructive_query: Arc<Mutex<Option<PendingDestructiveQuery>>>,
+    pending_import_sql: Arc<Mutex<String>>,
     pending_dialog_action: Arc<Mutex<(String, String)>>,
     raw_table_rows: Arc<Mutex<Vec<Value>>>,
 }
@@ -72,6 +82,7 @@ impl AppController {
         Self {
             state,
             history_mgr: Arc::new(HistoryManager::new()),
+            tab_mgr: Arc::new(Mutex::new(TabManager::new())),
             current_db: Arc::new(Mutex::new(String::new())),
             current_table: Arc::new(Mutex::new(String::new())),
             current_table_columns: Arc::new(Mutex::new(Vec::new())),
@@ -96,7 +107,8 @@ impl AppController {
             export_format: Arc::new(Mutex::new("sql".to_string())),
             export_structure: Arc::new(Mutex::new(true)),
             export_data: Arc::new(Mutex::new(true)),
-            pending_destructive_query: Arc::new(Mutex::new(String::new())),
+            pending_destructive_query: Arc::new(Mutex::new(None)),
+            pending_import_sql: Arc::new(Mutex::new(String::new())),
             pending_dialog_action: Arc::new(Mutex::new((String::new(), String::new()))),
             raw_table_rows: Arc::new(Mutex::new(Vec::new())),
         }
@@ -178,6 +190,8 @@ impl AppController {
                     let _ = auth::logout(&ctrl.state).await;
                     let _ = weak.upgrade_in_event_loop(move |app| {
                         ctrl.clear_pending_mutation_state(Some(&app));
+                        ctrl.tab_mgr.lock().unwrap().reset();
+                        ctrl.sync_active_tab_to_ui(&app);
                         app.set_is_logged_in(false);
                         app.set_is_encrypted(false);
                         app.set_login_error_message("".into());
@@ -231,6 +245,8 @@ impl AppController {
                 ctrl.state.set_current_db(Some(db_name.to_string()));
                 if let Some(app) = weak.upgrade() {
                     ctrl.clear_pending_mutation_state(Some(&app));
+                    ctrl.tab_mgr.lock().unwrap().reset();
+                    ctrl.sync_active_tab_to_ui(&app);
                     app.set_selected_db(db_name);
                     app.set_selected_table("".into());
                     app.set_active_view("db_overview".into());
@@ -463,16 +479,64 @@ impl AppController {
                             });
                         }
                         "destructive_query" => {
-                            let sql = ctrl.pending_destructive_query.lock().unwrap().clone();
-                            let db = ctrl.current_db.lock().unwrap().clone();
-                            let db_opt = if db.is_empty() { None } else { Some(db.as_str()) };
-                            let res = query::execute_query(&ctrl.state, db_opt, &sql, true).await;
-                            let _ = weak.upgrade_in_event_loop(move |app| {
-                                ctrl.apply_query_result(&app, res);
-                            });
+                            let pending = ctrl.pending_destructive_query.lock().unwrap().take();
+                            if let Some(pending) = pending {
+                                let (tab_valid, is_active) = {
+                                    let mgr = ctrl.tab_mgr.lock().unwrap();
+                                    let valid = mgr.epoch() == pending.epoch && mgr.get_tab(pending.tab_id).is_some();
+                                    let active = mgr.active_tab_id() == pending.tab_id;
+                                    (valid, active)
+                                };
+
+                                if !tab_valid {
+                                    let _ = weak.upgrade_in_event_loop(move |app| {
+                                        app.set_sql_error_message("Query aborted: target tab was closed or database was reset.".into());
+                                    });
+                                    return;
+                                }
+
+                                {
+                                    let mut mgr = ctrl.tab_mgr.lock().unwrap();
+                                    if mgr.set_running(pending.tab_id, true).is_err() {
+                                        return;
+                                    }
+                                }
+
+                                {
+                                    let ctrl = ctrl.clone();
+                                    let _ = weak.upgrade_in_event_loop(move |app| {
+                                        if is_active {
+                                            app.set_sql_loading(true);
+                                        }
+                                        ctrl.sync_tab_headers(&app);
+                                    });
+                                }
+
+                                let db = ctrl.current_db.lock().unwrap().clone();
+                                let db_opt = if db.is_empty() { None } else { Some(db.as_str()) };
+                                ctrl.history_mgr.add(&pending.sql, db_opt);
+
+                                let res = query::execute_query(&ctrl.state, db_opt, &pending.sql, true).await;
+
+                                let _ = weak.upgrade_in_event_loop(move |app| {
+                                    let should_apply_to_ui = {
+                                        let mut mgr = ctrl.tab_mgr.lock().unwrap();
+                                        mgr.set_result(pending.tab_id, pending.epoch, res);
+                                        mgr.active_tab_id() == pending.tab_id
+                                    };
+
+                                    if should_apply_to_ui {
+                                        let mgr = ctrl.tab_mgr.lock().unwrap();
+                                        if let Some(tab) = mgr.get_tab(pending.tab_id) {
+                                            ctrl.apply_tab_result_to_ui(&app, tab.result.as_ref());
+                                        }
+                                    }
+                                    ctrl.sync_tab_headers(&app);
+                                });
+                            }
                         }
                         "import_sql" => {
-                            let sql = ctrl.pending_destructive_query.lock().unwrap().clone();
+                            let sql = ctrl.pending_import_sql.lock().unwrap().clone();
                             let db = target.clone();
                             ctrl.perform_sql_import(weak.clone(), db, sql).await;
                         }
@@ -487,6 +551,8 @@ impl AppController {
             let ctrl = self.clone();
             app.on_cancel_dialog_action(move || {
                 *ctrl.pending_delete_row.lock().unwrap() = None;
+                *ctrl.pending_destructive_query.lock().unwrap() = None;
+                *ctrl.pending_import_sql.lock().unwrap() = String::new();
                 if let Some(app) = weak.upgrade() {
                     app.set_dialog_open(false);
                 }
@@ -506,12 +572,21 @@ impl AppController {
                     return;
                 }
 
-                tokio::spawn(async move {
-                    let db = ctrl.current_db.lock().unwrap().clone();
-                    let db_opt = if db.is_empty() { None } else { Some(db.as_str()) };
-
+                let (tab_id, epoch) = {
+                    let mut mgr = ctrl.tab_mgr.lock().unwrap();
+                    let tab = match mgr.get_active_tab() {
+                        Some(t) if !t.is_running => t,
+                        _ => return, // reject if running
+                    };
+                    let tab_id = tab.id;
+                    let epoch = mgr.epoch();
+                    mgr.update_active_query(&sql);
                     if crate::db::sanitize::is_destructive(&sql) {
-                        *ctrl.pending_destructive_query.lock().unwrap() = sql.clone();
+                        *ctrl.pending_destructive_query.lock().unwrap() = Some(PendingDestructiveQuery {
+                            sql: sql.clone(),
+                            tab_id,
+                            epoch,
+                        });
                         *ctrl.pending_dialog_action.lock().unwrap() = ("destructive_query".to_string(), String::new());
                         let _ = weak.upgrade_in_event_loop(move |app| {
                             app.set_dialog_title("DESTRUCTIVE QUERY".into());
@@ -521,11 +596,38 @@ impl AppController {
                         return;
                     }
 
+                    if mgr.set_running(tab_id, true).is_err() {
+                        return;
+                    }
+                    (tab_id, epoch)
+                };
+
+                if let Some(app) = weak.upgrade() {
+                    app.set_sql_loading(true);
+                    ctrl.sync_tab_headers(&app);
+                }
+
+                tokio::spawn(async move {
+                    let db = ctrl.current_db.lock().unwrap().clone();
+                    let db_opt = if db.is_empty() { None } else { Some(db.as_str()) };
+
                     ctrl.history_mgr.add(&sql, db_opt);
                     let res = query::execute_query(&ctrl.state, db_opt, &sql, false).await;
 
                     let _ = weak.upgrade_in_event_loop(move |app| {
-                        ctrl.apply_query_result(&app, res);
+                        let should_apply_to_ui = {
+                            let mut mgr = ctrl.tab_mgr.lock().unwrap();
+                            mgr.set_result(tab_id, epoch, res);
+                            mgr.active_tab_id() == tab_id
+                        };
+
+                        if should_apply_to_ui {
+                            let mgr = ctrl.tab_mgr.lock().unwrap();
+                            if let Some(tab) = mgr.get_tab(tab_id) {
+                                ctrl.apply_tab_result_to_ui(&app, tab.result.as_ref());
+                            }
+                        }
+                        ctrl.sync_tab_headers(&app);
                     });
                 });
             });
@@ -533,9 +635,24 @@ impl AppController {
 
         {
             let weak = weak.clone();
+            let ctrl = self.clone();
             app.on_explain_sql_query(move |sql_query| {
                 let sql = sql_query.to_string();
                 let exp = crate::explain::explain_query(&sql);
+                let explain_data = ExplainData {
+                    is_open: true,
+                    summary: exp.summary.clone(),
+                    lines: exp.lines.clone(),
+                    warnings: exp.warnings.clone(),
+                };
+
+                {
+                    let mut mgr = ctrl.tab_mgr.lock().unwrap();
+                    let active_id = mgr.active_tab_id();
+                    mgr.update_active_query(&sql);
+                    mgr.set_explain(active_id, explain_data);
+                }
+
                 if let Some(app) = weak.upgrade() {
                     app.set_sql_explain_summary(exp.summary.into());
                     let lines: Vec<SharedString> = exp.lines.into_iter().map(Into::into).collect();
@@ -543,21 +660,104 @@ impl AppController {
                     let warnings: Vec<SharedString> = exp.warnings.into_iter().map(Into::into).collect();
                     app.set_sql_explain_warnings(Rc::new(VecModel::from(warnings)).into());
                     app.set_sql_explain_open(true);
+                    ctrl.sync_tab_headers(&app);
                 }
             });
         }
 
         {
             let weak = weak.clone();
+            let ctrl = self.clone();
             app.on_clear_sql_query(move || {
+                {
+                    let mut mgr = ctrl.tab_mgr.lock().unwrap();
+                    let active_id = mgr.active_tab_id();
+                    mgr.clear_tab(active_id);
+                }
+
                 if let Some(app) = weak.upgrade() {
                     app.set_sql_query_text("".into());
                     app.set_sql_message("".into());
                     app.set_sql_error_message("".into());
+                    app.set_sql_execution_time_ms(0);
+                    app.set_sql_affected_rows(-1);
+                    app.set_sql_result_columns(ModelRc::default());
+                    app.set_sql_result_rows(ModelRc::default());
                     app.set_sql_explain_open(false);
                     app.set_sql_explain_summary("".into());
                     app.set_sql_explain_lines(Rc::new(VecModel::from(vec![])).into());
                     app.set_sql_explain_warnings(Rc::new(VecModel::from(vec![])).into());
+                    ctrl.sync_tab_headers(&app);
+                }
+            });
+        }
+
+        {
+            let weak = weak.clone();
+            let ctrl = self.clone();
+            app.on_sql_switch_tab(move |target_id| {
+                if let Some(app) = weak.upgrade() {
+                    let cur_query = app.get_sql_query_text().to_string();
+                    let cur_explain_open = app.get_sql_explain_open();
+                    {
+                        let mut mgr = ctrl.tab_mgr.lock().unwrap();
+                        mgr.update_active_query(&cur_query);
+                        mgr.update_active_explain_open(cur_explain_open);
+                        let _ = mgr.switch_tab(target_id as u64, None);
+                    }
+                    ctrl.sync_active_tab_to_ui(&app);
+                }
+            });
+        }
+
+        {
+            let weak = weak.clone();
+            let ctrl = self.clone();
+            app.on_sql_close_tab(move |tab_id| {
+                if let Some(app) = weak.upgrade() {
+                    let cur_query = app.get_sql_query_text().to_string();
+                    let cur_explain_open = app.get_sql_explain_open();
+                    {
+                        let mut mgr = ctrl.tab_mgr.lock().unwrap();
+                        mgr.update_active_query(&cur_query);
+                        mgr.update_active_explain_open(cur_explain_open);
+                        let _ = mgr.close_tab(tab_id as u64);
+                    }
+                    ctrl.sync_active_tab_to_ui(&app);
+                }
+            });
+        }
+
+        {
+            let weak = weak.clone();
+            let ctrl = self.clone();
+            app.on_sql_add_tab(move || {
+                if let Some(app) = weak.upgrade() {
+                    let cur_query = app.get_sql_query_text().to_string();
+                    let cur_explain_open = app.get_sql_explain_open();
+                    {
+                        let mut mgr = ctrl.tab_mgr.lock().unwrap();
+                        mgr.update_active_query(&cur_query);
+                        mgr.update_active_explain_open(cur_explain_open);
+                        let _ = mgr.add_tab();
+                    }
+                    ctrl.sync_active_tab_to_ui(&app);
+                }
+            });
+        }
+
+        {
+            let weak = weak.clone();
+            let ctrl = self.clone();
+            app.on_history_run_query(move |query_text| {
+                let sql = query_text.to_string();
+                if let Some(app) = weak.upgrade() {
+                    {
+                        let mut mgr = ctrl.tab_mgr.lock().unwrap();
+                        mgr.update_active_query(&sql);
+                    }
+                    app.set_sql_query_text(sql.into());
+                    ctrl.sync_tab_headers(&app);
                 }
             });
         }
@@ -1496,7 +1696,7 @@ impl AppController {
 
                 if is_dest {
                     *ctrl.pending_dialog_action.lock().unwrap() = ("import_sql".to_string(), db.clone());
-                    *ctrl.pending_destructive_query.lock().unwrap() = sql_str.clone();
+                    *ctrl.pending_import_sql.lock().unwrap() = sql_str.clone();
                     if let Some(app) = weak.upgrade() {
                         app.set_dialog_title("DESTRUCTIVE SQL IMPORT".into());
                         app.set_dialog_message(format!(
@@ -1873,6 +2073,8 @@ impl AppController {
                 }
             });
         }
+
+        self.sync_active_tab_to_ui(app);
     }
 
     // Helper refresh functions
@@ -2287,48 +2489,79 @@ impl AppController {
         });
     }
 
-    pub fn apply_query_result(&self, app: &AppWindow, res: Result<crate::db::models::QueryResult, String>) {
+    pub fn apply_tab_result_to_ui(&self, app: &AppWindow, res: Option<&SqlResultData>) {
         app.set_sql_loading(false);
-        match res {
-            Ok(qr) => {
-                app.set_sql_error_message("".into());
-                app.set_sql_execution_time_ms(qr.execution_time_ms as i32);
-                app.set_sql_affected_rows(qr.affected_rows.unwrap_or(0) as i32);
-                let msg = format!("Execution finished in {}ms. Affected rows: {}", qr.execution_time_ms, qr.affected_rows.unwrap_or(0));
-                app.set_sql_message(msg.into());
+        if let Some(r) = res {
+            app.set_sql_execution_time_ms(r.execution_time_ms);
+            app.set_sql_affected_rows(r.affected_rows);
+            app.set_sql_message(r.message.clone().into());
+            app.set_sql_error_message(r.error_message.clone().into());
 
-                let col_items: Vec<SharedString> = qr.columns.iter().map(|c| c.clone().into()).collect();
-                app.set_sql_result_columns(ModelRc::from(Rc::new(VecModel::from(col_items))));
+            let col_items: Vec<SharedString> = r.columns.iter().map(|c| c.clone().into()).collect();
+            app.set_sql_result_columns(ModelRc::from(Rc::new(VecModel::from(col_items))));
 
-                let mut rows = Vec::new();
-                if let Some(data_rows) = qr.data {
-                    for r in data_rows {
-                        let mut cells = Vec::new();
-                        if let Some(obj) = r.as_object() {
-                            for col in &qr.columns {
-                                let val_str = match obj.get(col) {
-                                    Some(serde_json::Value::Null) => "NULL".to_string(),
-                                    Some(serde_json::Value::String(s)) => s.clone(),
-                                    Some(other) => other.to_string(),
-                                    None => "NULL".to_string(),
-                                };
-                                cells.push(SharedString::from(val_str));
-                            }
-                        }
-                        rows.push(SqlResultRow {
-                            cells: ModelRc::from(Rc::new(VecModel::from(cells))),
-                        });
+            let row_items: Vec<SqlResultRow> = r
+                .rows
+                .iter()
+                .map(|row_cells| {
+                    let cells: Vec<SharedString> =
+                        row_cells.iter().map(|cell| cell.clone().into()).collect();
+                    SqlResultRow {
+                        cells: ModelRc::from(Rc::new(VecModel::from(cells))),
                     }
-                }
-                app.set_sql_result_rows(ModelRc::from(Rc::new(VecModel::from(rows))));
-            }
-            Err(e) => {
-                app.set_sql_error_message(e.into());
-                app.set_sql_message("".into());
-                app.set_sql_result_columns(ModelRc::default());
-                app.set_sql_result_rows(ModelRc::default());
-            }
+                })
+                .collect();
+            app.set_sql_result_rows(ModelRc::from(Rc::new(VecModel::from(row_items))));
+        } else {
+            app.set_sql_execution_time_ms(0);
+            app.set_sql_affected_rows(-1);
+            app.set_sql_message("".into());
+            app.set_sql_error_message("".into());
+            app.set_sql_result_columns(ModelRc::default());
+            app.set_sql_result_rows(ModelRc::default());
         }
+    }
+
+    pub fn sync_tab_headers(&self, app: &AppWindow) {
+        let (headers, active_id, can_add) = {
+            let mgr = self.tab_mgr.lock().unwrap();
+            (mgr.get_headers(), mgr.active_tab_id(), mgr.can_add_tab())
+        };
+
+        let tab_items: Vec<SqlTabItem> = headers
+            .into_iter()
+            .map(|h| SqlTabItem {
+                id: h.id as i32,
+                title: h.title.into(),
+                is_running: h.is_running,
+                has_unsaved_text: h.has_unsaved_text,
+            })
+            .collect();
+
+        app.set_sql_tabs(ModelRc::from(Rc::new(VecModel::from(tab_items))));
+        app.set_sql_active_tab_id(active_id as i32);
+        app.set_sql_can_add_tab(can_add);
+    }
+
+    pub fn sync_active_tab_to_ui(&self, app: &AppWindow) {
+        let tab = {
+            let mgr = self.tab_mgr.lock().unwrap();
+            mgr.get_active_tab().cloned()
+        };
+
+        if let Some(tab) = tab {
+            app.set_sql_query_text(tab.query.into());
+            app.set_sql_loading(tab.is_running);
+            self.apply_tab_result_to_ui(app, tab.result.as_ref());
+            app.set_sql_explain_open(tab.explain.is_open);
+            app.set_sql_explain_summary(tab.explain.summary.into());
+            let lines: Vec<SharedString> = tab.explain.lines.into_iter().map(Into::into).collect();
+            app.set_sql_explain_lines(Rc::new(VecModel::from(lines)).into());
+            let warnings: Vec<SharedString> =
+                tab.explain.warnings.into_iter().map(Into::into).collect();
+            app.set_sql_explain_warnings(Rc::new(VecModel::from(warnings)).into());
+        }
+        self.sync_tab_headers(app);
     }
 
     pub fn execute_sql_import(self: Arc<Self>, weak: slint::Weak<AppWindow>, db: String, sql: String) {

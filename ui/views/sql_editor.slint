@@ -7,6 +7,13 @@ export struct SqlResultRow {
     cells: [string],
 }
 
+export struct SqlTabItem {
+    id: int,
+    title: string,
+    is_running: bool,
+    has_unsaved_text: bool,
+}
+
 export component SqlEditorView inherits Rectangle {
     in-out property <string> db-name: "";
     in-out property <string> query <=> sql_input.text;
@@ -24,9 +31,16 @@ export component SqlEditorView inherits Rectangle {
     in-out property <[string]> explain-lines: [];
     in-out property <[string]> explain-warnings: [];
 
+    in-out property <[SqlTabItem]> tabs: [];
+    in-out property <int> active-tab-id: 1;
+    in-out property <bool> can-add-tab: true;
+
     callback run-query(string);
     callback clear-query();
     callback explain-query(string);
+    callback switch-tab(int);
+    callback close-tab(int);
+    callback add-tab();
 
     background: Theme.bg-base;
 
@@ -118,6 +132,113 @@ export component SqlEditorView inherits Rectangle {
                     height: 30px;
                     clicked => {
                         root.run-query(root.query);
+                    }
+                }
+            }
+        }
+
+        // SQL Tabs Bar
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: start;
+            height: 32px;
+
+            for tab in root.tabs : Rectangle {
+                background: root.active-tab-id == tab.id ? Theme.bg-panel : (tab_touch.has-hover ? Theme.bg-hover : Theme.bg-header);
+                border-color: root.active-tab-id == tab.id ? Theme.accent : Theme.border;
+                border-width: 1px;
+                border-radius: Theme.radius;
+                height: 30px;
+
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 6px;
+                    spacing: 6px;
+                    alignment: center;
+
+                    tab_touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.switch-tab(tab.id);
+                        }
+
+                        HorizontalLayout {
+                            spacing: 6px;
+                            alignment: center;
+
+                            if tab.is-running : Text {
+                                text: "⏳";
+                                font-size: Theme.font-xs;
+                                vertical-alignment: center;
+                            }
+
+                            Text {
+                                text: tab.title;
+                                color: root.active-tab-id == tab.id ? Theme.accent : Theme.foreground;
+                                font-size: Theme.font-xs;
+                                font-weight: root.active-tab-id == tab.id ? 700 : 500;
+                                font-family: Theme.font-mono;
+                                vertical-alignment: center;
+                            }
+
+                            if tab.has-unsaved-text : Text {
+                                text: "•";
+                                color: Theme.accent;
+                                font-size: Theme.font-sm;
+                                font-weight: 700;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    // Close tab button
+                    Rectangle {
+                        width: 16px;
+                        height: 16px;
+                        border-radius: 2px;
+                        background: close_tab_touch.has-hover ? Theme.bg-hover : transparent;
+
+                        Text {
+                            text: "✕";
+                            color: close_tab_touch.has-hover ? Theme.danger : Theme.text-muted;
+                            font-size: 10px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+
+                        close_tab_touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.close-tab(tab.id);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // New Tab (+) Button
+            Rectangle {
+                width: 30px;
+                height: 30px;
+                background: !root.can-add-tab ? Theme.bg-base : (add_touch.has-hover ? Theme.bg-hover : Theme.bg-header);
+                border-color: Theme.border;
+                border-width: 1px;
+                border-radius: Theme.radius;
+
+                Text {
+                    text: "+";
+                    color: !root.can-add-tab ? Theme.text-subtle : (add_touch.has-hover ? Theme.accent : Theme.text-muted);
+                    font-size: Theme.font-md;
+                    font-weight: 700;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                add_touch := TouchArea {
+                    enabled: root.can-add-tab;
+                    mouse-cursor: root.can-add-tab ? pointer : default;
+                    clicked => {
+                        root.add-tab();
                     }
                 }
             }

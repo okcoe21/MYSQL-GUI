@@ -9,7 +9,7 @@ import { ServerOverviewView, ProcessItem, DbSummaryItem } from "views/server_ove
 import { DbOverviewView, TableStatItem } from "views/db_overview.slint";
 import { TableDataView, TableRowData, TableInsertField } from "views/table_data.slint";
 import { StructureViewView, ColumnInfoItem } from "views/structure_view.slint";
-import { SqlEditorView, SqlResultRow } from "views/sql_editor.slint";
+import { SqlEditorView, SqlResultRow, SqlTabItem } from "views/sql_editor.slint";
 import { HistoryViewView, HistoryDisplayItem } from "views/history_view.slint";
 import { QueryBuilderView } from "views/query_builder.slint";
 import { InsertViewView, InsertFieldItem } from "views/insert_view.slint";
@@ -33,6 +33,7 @@ export {
     TableInsertField,
     ColumnInfoItem,
     SqlResultRow,
+    SqlTabItem,
     HistoryDisplayItem,
     InsertFieldItem,
     MockColumnBlueprint,
@@ -134,6 +135,9 @@ export component AppWindow inherits Window {
     in-out property <string> sql-explain-summary: "";
     in-out property <[string]> sql-explain-lines: [];
     in-out property <[string]> sql-explain-warnings: [];
+    in-out property <[SqlTabItem]> sql-tabs: [];
+    in-out property <int> sql-active-tab-id: 1;
+    in-out property <bool> sql-can-add-tab: true;
 
     // History
     in-out property <[HistoryDisplayItem]> history-items: [];
@@ -234,6 +238,9 @@ export component AppWindow inherits Window {
     callback run-sql-query(string);
     callback clear-sql-query();
     callback explain-sql-query(string);
+    callback sql-switch-tab(int);
+    callback sql-close-tab(int);
+    callback sql-add-tab();
     callback prev-table-page();
     callback next-table-page();
     callback set-table-limit(int);
@@ -619,9 +626,15 @@ export component AppWindow inherits Window {
                         explain-summary: root.sql-explain-summary;
                         explain-lines: root.sql-explain-lines;
                         explain-warnings: root.sql-explain-warnings;
+                        tabs: root.sql-tabs;
+                        active-tab-id: root.sql-active-tab-id;
+                        can-add-tab: root.sql-can-add-tab;
                         run-query(q) => { root.run-sql-query(q); }
                         clear-query => { root.clear-sql-query(); }
                         explain-query(q) => { root.explain-sql-query(q); }
+                        switch-tab(id) => { root.sql-switch-tab(id); }
+                        close-tab(id) => { root.sql-close-tab(id); }
+                        add-tab => { root.sql-add-tab(); }
                     }
 
                     if root.active-view == "history" : history_view := HistoryViewView {
