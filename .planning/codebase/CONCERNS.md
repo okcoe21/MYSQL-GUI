@@ -5,7 +5,7 @@
 ## Current Technical Debt & Risks
 
 ### 1. Test Coverage
-- **Status:** Comprehensive unit and regression test suite active and passing (79/79 tests in `cargo test`). Covers identifier quoting, boundaries, SQL escaping, column length validation, destructive guards, secret redaction, offline query explainer, RFC 4180 CSV parsing, formula injection neutralization, safe SQL statement splitting, primary key validation, column edit restrictions, and table row updates/inserts/deletes.
+- **Status:** Comprehensive unit and regression test suite active and passing (85/85 tests in `cargo test`). Covers identifier quoting, boundaries, SQL escaping, column length validation, destructive guards, secret redaction, offline query explainer, RFC 4180 CSV parsing, formula injection neutralization, safe SQL statement splitting, primary key validation, column edit restrictions, mutation snapshots, and transactional row updates/inserts/deletes.
 - **Next Steps:** Expand integration testing with disposable MySQL containers (`testcontainers`) and Slint headless UI testing.
 
 ### 2. Slint Layout Clamping Behavior

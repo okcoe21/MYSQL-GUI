@@ -110,6 +110,7 @@ export component AppWindow inherits Window {
     in-out property <string> table-cell-edit-value: "";
     in-out property <string> table-cell-edit-error: "";
     in-out property <bool> table-cell-edit-loading: false;
+    in-out property <bool> table-cell-edit-is-pk: false;
 
     // Table Data Insert Modal
     in-out property <bool> table-insert-modal-open: false;
@@ -570,6 +571,7 @@ export component AppWindow inherits Window {
                         cell-edit-value <=> root.table-cell-edit-value;
                         cell-edit-error: root.table-cell-edit-error;
                         cell-edit-loading: root.table-cell-edit-loading;
+                        cell-edit-is-pk: root.table-cell-edit-is-pk;
 
                         insert-modal-open <=> root.table-insert-modal-open;
                         insert-fields: root.table-insert-fields;

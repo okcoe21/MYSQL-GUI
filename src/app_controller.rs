@@ -10,7 +10,7 @@ use crate::{
 };
 use crate::state::SharedState;
 use crate::db::{
-    auth, database, table, data::{self, BindValue}, query, server, objects, maintenance,
+    auth, database, table, data::{self, BindValue, DeleteRowSnapshot}, query, server, objects, maintenance,
     history::HistoryManager,
     models::TableColumnInfo,
     sanitize::{build_query_builder_select, sanitize_identifier, validate_column_length, is_destructive},
@@ -55,7 +55,9 @@ pub struct AppController {
     create_columns: Arc<Mutex<Vec<CreateTableColumnItem>>>,
     insert_fields: Arc<Mutex<Vec<InsertFieldItem>>>,
     table_insert_fields: Arc<Mutex<Vec<TableInsertField>>>,
+    table_insert_target_table: Arc<Mutex<String>>,
     pending_cell_edit: Arc<Mutex<Option<PendingCellEdit>>>,
+    pending_delete_row: Arc<Mutex<Option<DeleteRowSnapshot>>>,
     mock_blueprint: Arc<Mutex<Vec<MockColumnBlueprint>>>,
     export_format: Arc<Mutex<String>>,
     export_structure: Arc<Mutex<bool>>,
@@ -87,7 +89,9 @@ impl AppController {
             }])),
             insert_fields: Arc::new(Mutex::new(Vec::new())),
             table_insert_fields: Arc::new(Mutex::new(Vec::new())),
+            table_insert_target_table: Arc::new(Mutex::new(String::new())),
             pending_cell_edit: Arc::new(Mutex::new(None)),
+            pending_delete_row: Arc::new(Mutex::new(None)),
             mock_blueprint: Arc::new(Mutex::new(Vec::new())),
             export_format: Arc::new(Mutex::new("sql".to_string())),
             export_structure: Arc::new(Mutex::new(true)),
@@ -95,6 +99,21 @@ impl AppController {
             pending_destructive_query: Arc::new(Mutex::new(String::new())),
             pending_dialog_action: Arc::new(Mutex::new((String::new(), String::new()))),
             raw_table_rows: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    pub fn clear_pending_mutation_state(&self, app: Option<&AppWindow>) {
+        *self.pending_delete_row.lock().unwrap() = None;
+        *self.pending_cell_edit.lock().unwrap() = None;
+        *self.table_insert_target_table.lock().unwrap() = String::new();
+        if let Some(app) = app {
+            app.set_table_cell_edit_open(false);
+            app.set_table_insert_modal_open(false);
+            let action = self.pending_dialog_action.lock().unwrap().0.clone();
+            if action == "delete_row" {
+                *self.pending_dialog_action.lock().unwrap() = (String::new(), String::new());
+                app.set_dialog_open(false);
+            }
         }
     }
 
@@ -158,6 +177,7 @@ impl AppController {
                 tokio::spawn(async move {
                     let _ = auth::logout(&ctrl.state).await;
                     let _ = weak.upgrade_in_event_loop(move |app| {
+                        ctrl.clear_pending_mutation_state(Some(&app));
                         app.set_is_logged_in(false);
                         app.set_is_encrypted(false);
                         app.set_login_error_message("".into());
@@ -210,6 +230,7 @@ impl AppController {
                 *ctrl.current_table.lock().unwrap() = String::new();
                 ctrl.state.set_current_db(Some(db_name.to_string()));
                 if let Some(app) = weak.upgrade() {
+                    ctrl.clear_pending_mutation_state(Some(&app));
                     app.set_selected_db(db_name);
                     app.set_selected_table("".into());
                     app.set_active_view("db_overview".into());
@@ -226,11 +247,9 @@ impl AppController {
                 *ctrl.current_table.lock().unwrap() = table_name.to_string();
                 *ctrl.table_offset.lock().unwrap() = 0;
                 *ctrl.table_sort_col.lock().unwrap() = None;
-                *ctrl.pending_cell_edit.lock().unwrap() = None;
                 ctrl.state.set_current_db(Some(db_name.to_string()));
                 if let Some(app) = weak.upgrade() {
-                    app.set_table_cell_edit_open(false);
-                    app.set_table_insert_modal_open(false);
+                    ctrl.clear_pending_mutation_state(Some(&app));
                     app.set_selected_db(db_name);
                     app.set_selected_table(table_name);
                     app.set_active_view("browse".into());
@@ -384,6 +403,7 @@ impl AppController {
                         "drop_db" => {
                             let _ = database::drop_database(&ctrl.state, &target).await;
                             let _ = weak.upgrade_in_event_loop(move |app| {
+                                ctrl.clear_pending_mutation_state(Some(&app));
                                 ctrl.refresh_databases(&app);
                                 ctrl.refresh_server_overview(&app);
                             });
@@ -392,6 +412,7 @@ impl AppController {
                             let db = ctrl.current_db.lock().unwrap().clone();
                             let _ = table::drop_table(&ctrl.state, &db, &target).await;
                             let _ = weak.upgrade_in_event_loop(move |app| {
+                                ctrl.clear_pending_mutation_state(Some(&app));
                                 ctrl.refresh_databases(&app);
                                 app.set_selected_table("".into());
                                 app.set_active_view("db_overview".into());
@@ -403,6 +424,42 @@ impl AppController {
                             let _ = table::truncate_table(&ctrl.state, &db, &target).await;
                             let _ = weak.upgrade_in_event_loop(move |app| {
                                 ctrl.refresh_table_data(&app);
+                            });
+                        }
+                        "delete_row" => {
+                            let snapshot_opt = ctrl.pending_delete_row.lock().unwrap().take();
+                            let active_table = ctrl.current_table.lock().unwrap().clone();
+                            let snapshot = match data::validate_delete_snapshot(snapshot_opt.as_ref(), &active_table) {
+                                Ok(()) => snapshot_opt.unwrap(),
+                                Err(err) => {
+                                    let _ = weak.upgrade_in_event_loop(move |app| {
+                                        app.set_table_error_message(err.into());
+                                    });
+                                    return;
+                                }
+                            };
+
+                            let db = ctrl.current_db.lock().unwrap().clone();
+                            let cols = ctrl.current_table_columns.lock().unwrap().clone();
+                            let pk_refs: Vec<(&str, BindValue)> = snapshot.pk_values.iter().map(|(k, v)| (k.as_str(), v.clone())).collect();
+                            let del_res = data::delete_row(&ctrl.state, &db, &snapshot.table, &pk_refs, &cols).await;
+
+                            let query_str = {
+                                let sanitized_table = sanitize_identifier(&snapshot.table).unwrap_or_else(|_| snapshot.table.clone());
+                                let where_parts: Vec<String> = snapshot.pk_values.iter().map(|(k, _)| format!("{} = ?", sanitize_identifier(k).unwrap_or_else(|_| k.to_string()))).collect();
+                                format!("DELETE FROM {} WHERE {} LIMIT 1", sanitized_table, where_parts.join(" AND "))
+                            };
+
+                            let _ = weak.upgrade_in_event_loop(move |app| {
+                                match del_res {
+                                    Ok(_) => {
+                                        ctrl.history_mgr.add(&query_str, Some(&db));
+                                        ctrl.refresh_table_data(&app);
+                                    }
+                                    Err(err) => {
+                                        app.set_table_error_message(err.into());
+                                    }
+                                }
                             });
                         }
                         "destructive_query" => {
@@ -427,7 +484,9 @@ impl AppController {
 
         {
             let weak = weak.clone();
+            let ctrl = self.clone();
             app.on_cancel_dialog_action(move || {
+                *ctrl.pending_delete_row.lock().unwrap() = None;
                 if let Some(app) = weak.upgrade() {
                     app.set_dialog_open(false);
                 }
@@ -574,46 +633,56 @@ impl AppController {
             let weak = weak.clone();
             let ctrl = self.clone();
             app.on_delete_table_row(move |row_idx| {
-                let ctrl = ctrl.clone();
-                let weak = weak.clone();
-                tokio::spawn(async move {
-                    let db = ctrl.current_db.lock().unwrap().clone();
-                    let tbl = ctrl.current_table.lock().unwrap().clone();
-                    let cols = ctrl.current_table_columns.lock().unwrap().clone();
-                    let offset = *ctrl.table_offset.lock().unwrap();
-                    let local_idx = if (row_idx as i64) >= offset {
-                        (row_idx as i64 - offset) as usize
-                    } else {
-                        row_idx as usize
-                    };
+                let tbl = ctrl.current_table.lock().unwrap().clone();
+                let cols = ctrl.current_table_columns.lock().unwrap().clone();
+                let pri_cols: Vec<_> = cols.iter().filter(|c| c.is_primary()).collect();
+                if pri_cols.is_empty() || pri_cols.iter().any(|c| c.has_unsupported_pk_type()) {
+                    return;
+                }
 
-                    let target_row = {
-                        let raw_rows = ctrl.raw_table_rows.lock().unwrap();
-                        raw_rows.get(local_idx).cloned()
-                    };
+                let offset = *ctrl.table_offset.lock().unwrap();
+                let local_idx = if (row_idx as i64) >= offset {
+                    (row_idx as i64 - offset) as usize
+                } else {
+                    row_idx as usize
+                };
 
-                    if let Some(row_val) = target_row {
-                        let pri_cols: Vec<_> = cols.iter().filter(|c| c.is_primary()).collect();
-                        if !pri_cols.is_empty() && !pri_cols.iter().any(|c| c.has_unsupported_pk_type()) {
-                            let mut pk_values = Vec::new();
-                            for pri in &pri_cols {
-                                let val = row_val.as_object().and_then(|obj| obj.get(&pri.field)).unwrap_or(&Value::Null);
-                                pk_values.push((pri.field.as_str(), BindValue::from(val)));
-                            }
-                            let del_res = data::delete_row(&ctrl.state, &db, &tbl, &pk_values, &cols).await;
-                            if del_res.is_ok() {
-                                let sanitized_table = sanitize_identifier(&tbl).unwrap_or_else(|_| tbl.clone());
-                                let where_parts: Vec<String> = pri_cols.iter().map(|p| format!("{} = ?", sanitize_identifier(&p.field).unwrap_or_else(|_| p.field.clone()))).collect();
-                                let query_str = format!("DELETE FROM {} WHERE {} LIMIT 1", sanitized_table, where_parts.join(" AND "));
-                                ctrl.history_mgr.add(&query_str, Some(&db));
-                            }
-                        }
+                let target_row = {
+                    let raw_rows = ctrl.raw_table_rows.lock().unwrap();
+                    match raw_rows.get(local_idx) {
+                        Some(r) => r.clone(),
+                        None => return,
                     }
+                };
 
-                    let _ = weak.upgrade_in_event_loop(move |app| {
-                        ctrl.refresh_table_data(&app);
-                    });
-                });
+                let mut captured_pks = Vec::new();
+                let mut pk_strs = Vec::new();
+                for pri in &pri_cols {
+                    let val = target_row.as_object().and_then(|obj| obj.get(&pri.field)).unwrap_or(&Value::Null);
+                    let bind_val = BindValue::from(val);
+                    let val_str = match &bind_val {
+                        BindValue::Null => "NULL".to_string(),
+                        BindValue::String(s) => format!("'{}'", s),
+                        BindValue::Int(i) => i.to_string(),
+                        BindValue::Float(f) => f.to_string(),
+                        BindValue::Bool(b) => b.to_string(),
+                    };
+                    pk_strs.push(format!("{}={}", pri.field, val_str));
+                    captured_pks.push((pri.field.clone(), bind_val));
+                }
+
+                let snapshot = DeleteRowSnapshot::new(&tbl, captured_pks);
+                *ctrl.pending_delete_row.lock().unwrap() = Some(snapshot);
+                *ctrl.pending_dialog_action.lock().unwrap() = ("delete_row".to_string(), tbl.clone());
+
+                let pk_summary = pk_strs.join(", ");
+                let message = format!("Delete row {} from {}? This action cannot be undone.", pk_summary, tbl);
+
+                if let Some(app) = weak.upgrade() {
+                    app.set_dialog_title("DELETE ROW".into());
+                    app.set_dialog_message(message.into());
+                    app.set_dialog_open(true);
+                }
             });
         }
 
@@ -671,9 +740,12 @@ impl AppController {
                     other => other.to_string(),
                 };
 
+                let is_pk = target_col.is_primary();
+
                 if let Some(app) = weak.upgrade() {
                     app.set_table_cell_edit_col_name(target_col.field.clone().into());
                     app.set_table_cell_edit_col_type(target_col.r#type.clone().into());
+                    app.set_table_cell_edit_is_pk(is_pk);
                     app.set_table_cell_edit_nullable(target_col.is_nullable());
                     app.set_table_cell_edit_is_null(is_null);
                     app.set_table_cell_edit_value(val_str.into());
@@ -692,6 +764,17 @@ impl AppController {
                     Some(p) => p,
                     None => return,
                 };
+
+                let cols = ctrl.current_table_columns.lock().unwrap().clone();
+                if let Some(target_col) = cols.iter().find(|c| c.field.eq_ignore_ascii_case(&pending.column)) {
+                    if target_col.is_primary() {
+                        if let Some(app) = weak.upgrade() {
+                            app.set_table_cell_edit_loading(false);
+                            app.set_table_cell_edit_error("Primary key: delete and re-insert instead".into());
+                        }
+                        return;
+                    }
+                }
 
                 let weak = weak.clone();
                 let ctrl = ctrl.clone();
@@ -764,6 +847,7 @@ impl AppController {
             let weak = weak.clone();
             let ctrl = self.clone();
             app.on_open_insert_modal(move || {
+                let tbl = ctrl.current_table.lock().unwrap().clone();
                 let cols = ctrl.current_table_columns.lock().unwrap().clone();
                 let mut insert_fields = Vec::new();
 
@@ -788,6 +872,7 @@ impl AppController {
                 }
 
                 *ctrl.table_insert_fields.lock().unwrap() = insert_fields.clone();
+                *ctrl.table_insert_target_table.lock().unwrap() = tbl.clone();
 
                 if let Some(app) = weak.upgrade() {
                     app.set_table_insert_fields(ModelRc::from(Rc::new(VecModel::from(insert_fields))));
@@ -863,6 +948,16 @@ impl AppController {
                 tokio::spawn(async move {
                     let db = ctrl.current_db.lock().unwrap().clone();
                     let tbl = ctrl.current_table.lock().unwrap().clone();
+                    let target_tbl = ctrl.table_insert_target_table.lock().unwrap().clone();
+
+                    if let Err(err) = data::validate_insert_target_table(&target_tbl, &tbl) {
+                        let _ = weak.upgrade_in_event_loop(move |app| {
+                            app.set_table_insert_modal_loading(false);
+                            app.set_table_insert_modal_error(err.into());
+                        });
+                        return;
+                    }
+
                     let fields = ctrl.table_insert_fields.lock().unwrap().clone();
                     let cols = ctrl.current_table_columns.lock().unwrap().clone();
 
@@ -901,6 +996,7 @@ impl AppController {
                         match res {
                             Ok(_) => {
                                 app.set_table_insert_modal_open(false);
+                                *ctrl.table_insert_target_table.lock().unwrap() = String::new();
                                 ctrl.history_mgr.add(&query_str, Some(&db));
                                 ctrl.refresh_table_data(&app);
                             }
@@ -915,7 +1011,9 @@ impl AppController {
 
         {
             let weak = weak.clone();
+            let ctrl = self.clone();
             app.on_cancel_insert_modal(move || {
+                *ctrl.table_insert_target_table.lock().unwrap() = String::new();
                 if let Some(app) = weak.upgrade() {
                     app.set_table_insert_modal_open(false);
                     app.set_table_insert_modal_error("".into());

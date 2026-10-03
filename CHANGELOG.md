@@ -4,6 +4,19 @@ All notable changes to MySQL GUI are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [3.0.9] — 2026-10-03
+
+### Fixed & Hardened
+- **SEC2-01 (Insert Column Whitelist):** `build_insert_query` now strictly validates every column name against `columns_info` metadata via `.ok_or_else()`, rejecting unknown or malformed column submissions immediately.
+- **SEC2-02 (Delete Snapshot & Confirmation):** Row deletion now captures an immutable `DeleteRowSnapshot` containing table and primary key values, presenting a modal `ConfirmDialog` ("Delete row ... from ...?") before execution. The deletion handler runs exclusively from the snapshot data without referencing transient row indexes.
+- **SEC2-03 (Primary Key Immobility):** Primary key columns are protected against in-place modification. The cell edit modal flags PK cells with a `🔒 Primary key: delete and re-insert instead` warning banner and disables inputs/saving; `build_update_query` blocks PK column updates by design.
+- **SEC2-04 (Insert Target Table Lock):** In-grid row insertion modal tracks the target table name and validates it against the active table on submit (`validate_insert_target_table`), aborting cleanly on table switch or mismatch.
+- **SEC2-05 (Transactional Single-Connection Delete):** `delete_row` executes inside a dedicated single-connection transaction (`conn.begin()`), verifies `rows_affected == 1`, and rolls back with an error otherwise.
+- **Context-Switch Mutation Hygiene:** All pending mutation snapshots (cell edit, row delete, insert modal target) are automatically invalidated and cleared on database switch, table switch, logout, and table drops.
+- **Data Unit Test Suite Expansion:** Added 6 new unit tests in `src/db/data.rs` testing PK update rejections, unknown column insert rejections, insert target table mismatches, complete PK requirements on delete, snapshot integrity, and missing snapshot handling (total 85 passing tests).
+
+---
+
 ## [3.0.8] — 2026-10-03
 
 ### Added

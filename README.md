@@ -1,13 +1,13 @@
-# MySQL GUI (v3.0.8)
+# MySQL GUI (v3.0.9)
 
 A high-performance, native MySQL desktop client built with **Rust** and **Slint UI**.  
 Zero Electron. Zero Node.js. Zero web runtime overhead. Just pure native speed and direct SQL execution.
 
-![Version](https://img.shields.io/badge/version-3.0.8-blue)
+![Version](https://img.shields.io/badge/version-3.0.9-blue)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange)
 ![UI](https://img.shields.io/badge/UI-Slint%201.18-green)
 ![Database](https://img.shields.io/badge/Database-MySQL%20%2F%20MariaDB-4479A1)
-![Tests](https://img.shields.io/badge/Tests-79%20Passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-85%20Passing-brightgreen)
 
 ---
 

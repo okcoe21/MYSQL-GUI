@@ -70,6 +70,54 @@ pub struct PreparedDelete {
     pub bindings: Vec<BindValue>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct DeleteRowSnapshot {
+    pub table: String,
+    pub pk_values: Vec<(String, BindValue)>,
+}
+
+impl DeleteRowSnapshot {
+    pub fn new(table: impl Into<String>, pk_values: Vec<(String, BindValue)>) -> Self {
+        Self {
+            table: table.into(),
+            pk_values,
+        }
+    }
+}
+
+pub fn validate_insert_target_table(target_table: &str, active_table: &str) -> Result<(), String> {
+    if target_table.trim().is_empty() {
+        return Err("Insert target table cannot be empty".to_string());
+    }
+    if !target_table.eq_ignore_ascii_case(active_table) {
+        return Err(format!(
+            "Insert target table '{}' does not match active table '{}'",
+            target_table, active_table
+        ));
+    }
+    Ok(())
+}
+
+pub fn validate_delete_snapshot(
+    snapshot: Option<&DeleteRowSnapshot>,
+    active_table: &str,
+) -> Result<(), String> {
+    let s = snapshot.ok_or_else(|| {
+        "Pending row deletion snapshot is missing or was invalidated; operation aborted"
+            .to_string()
+    })?;
+    if !s.table.eq_ignore_ascii_case(active_table) {
+        return Err(format!(
+            "Snapshot table '{}' does not match active table '{}'",
+            s.table, active_table
+        ));
+    }
+    if s.pk_values.is_empty() {
+        return Err("Pending deletion snapshot contains no primary key values".to_string());
+    }
+    Ok(())
+}
+
 fn bind_value<'a>(
     query: sqlx::query::Query<'a, sqlx::MySql, sqlx::mysql::MySqlArguments>,
     val: &'a BindValue,
@@ -98,6 +146,13 @@ pub fn build_update_query(
         .iter()
         .find(|c| c.field.eq_ignore_ascii_case(column))
         .ok_or_else(|| format!("Column '{}' does not exist in table '{}'", column, table))?;
+
+    if target_col.is_primary() {
+        return Err(format!(
+            "Column '{}' is a primary key and cannot be edited directly (delete and re-insert instead)",
+            column
+        ));
+    }
 
     if target_col.is_read_only() {
         return Err(format!(
@@ -181,10 +236,13 @@ pub fn build_insert_query(
     let mut bindings = Vec::new();
 
     for (col_name, opt_val) in fields {
-        if let Some(col_info) = columns_info.iter().find(|c| c.field.eq_ignore_ascii_case(col_name)) {
-            if col_info.is_generated() {
-                return Err(format!("Cannot insert into generated column '{}'", col_info.field));
-            }
+        let col_info = columns_info
+            .iter()
+            .find(|c| c.field.eq_ignore_ascii_case(col_name))
+            .ok_or_else(|| format!("Column '{}' does not exist in table '{}'", col_name, table))?;
+
+        if col_info.is_generated() {
+            return Err(format!("Cannot insert into generated column '{}'", col_info.field));
         }
 
         // When opt_val is None, column is omitted to let MySQL apply DEFAULT or AUTO_INCREMENT
@@ -403,14 +461,25 @@ pub async fn delete_row(
 ) -> Result<u64, String> {
     let prepared = build_delete_query(table, pk_values, columns_info)?;
     let mut conn = state.get_connection(Some(db)).await?;
+    let mut tx = conn.begin().await.map_err(|e| e.to_string())?;
 
     let mut query = sqlx::query(&prepared.sql);
     for b in &prepared.bindings {
         query = bind_value(query, b);
     }
 
-    let result = query.execute(&mut *conn).await.map_err(|e| e.to_string())?;
-    Ok(result.rows_affected())
+    let result = query.execute(&mut *tx).await.map_err(|e| e.to_string())?;
+    let affected = result.rows_affected();
+    if affected != 1 {
+        let _ = tx.rollback().await;
+        return Err(format!(
+            "Delete affected {} rows (expected exactly 1); transaction rolled back",
+            affected
+        ));
+    }
+
+    tx.commit().await.map_err(|e| e.to_string())?;
+    Ok(affected)
 }
 
 #[cfg(test)]
@@ -590,5 +659,116 @@ mod tests {
         let res = build_delete_query("users", &pks, &cols).expect("Delete query failed");
         assert_eq!(res.sql, "DELETE FROM `users` WHERE `id` = ? LIMIT 1");
         assert_eq!(res.bindings, vec![BindValue::Int(77)]);
+    }
+
+    #[test]
+    fn test_delete_builder_requires_complete_pk() {
+        let cols = vec![
+            make_col("tenant_id", "int", true, "", "NO", None),
+            make_col("user_id", "int", true, "", "NO", None),
+            make_col("name", "varchar(50)", false, "", "YES", None),
+        ];
+
+        // 1. Partial PK
+        let partial_pks = [("tenant_id", BindValue::Int(1))];
+        let err = build_delete_query("accounts", &partial_pks, &cols).unwrap_err();
+        assert!(err.contains("Primary key count mismatch: expected 2 PK column(s), got 1"));
+
+        // 2. Mismatched PK column name
+        let mismatched_pks = [
+            ("tenant_id", BindValue::Int(1)),
+            ("wrong_pk", BindValue::Int(2)),
+        ];
+        let err2 = build_delete_query("accounts", &mismatched_pks, &cols).unwrap_err();
+        assert!(err2.contains("Missing primary key value for column 'user_id'"));
+
+        // 3. Complete valid PK
+        let valid_pks = [
+            ("tenant_id", BindValue::Int(1)),
+            ("user_id", BindValue::Int(2)),
+        ];
+        let ok = build_delete_query("accounts", &valid_pks, &cols);
+        assert!(ok.is_ok());
+    }
+
+    #[test]
+    fn test_delete_snapshot_carries_table_name() {
+        let pks = vec![
+            ("id".to_string(), BindValue::Int(42)),
+            ("region".to_string(), BindValue::String("us-west".into())),
+        ];
+        let snapshot = DeleteRowSnapshot::new("cluster_nodes", pks.clone());
+        assert_eq!(snapshot.table, "cluster_nodes");
+        assert_eq!(snapshot.pk_values, pks);
+    }
+
+    #[test]
+    fn test_validate_delete_snapshot_missing_and_mismatch() {
+        // Missing snapshot
+        let res_missing = validate_delete_snapshot(None, "users");
+        assert!(res_missing.is_err());
+        assert!(res_missing.unwrap_err().contains("snapshot is missing"));
+
+        // Table mismatch
+        let snapshot = DeleteRowSnapshot::new("orders", vec![("id".to_string(), BindValue::Int(1))]);
+        let res_mismatch = validate_delete_snapshot(Some(&snapshot), "users");
+        assert!(res_mismatch.is_err());
+        assert!(res_mismatch.unwrap_err().contains("does not match active table"));
+
+        // Empty PK values in snapshot
+        let empty_pk_snapshot = DeleteRowSnapshot::new("users", vec![]);
+        let res_empty = validate_delete_snapshot(Some(&empty_pk_snapshot), "users");
+        assert!(res_empty.is_err());
+        assert!(res_empty.unwrap_err().contains("contains no primary key values"));
+
+        // Valid snapshot
+        let valid_snapshot = DeleteRowSnapshot::new("users", vec![("id".to_string(), BindValue::Int(10))]);
+        assert!(validate_delete_snapshot(Some(&valid_snapshot), "users").is_ok());
+    }
+
+    #[test]
+    fn test_insert_rejects_unknown_columns() {
+        let cols = vec![
+            make_col("id", "int", true, "auto_increment", "NO", None),
+            make_col("username", "varchar(50)", false, "", "NO", None),
+        ];
+
+        let fields = [
+            ("username", Some(BindValue::String("alice".into()))),
+            ("non_existent_column", Some(BindValue::String("bad_val".into()))),
+        ];
+
+        let res = build_insert_query("users", &fields, &cols);
+        assert!(res.is_err());
+        let err = res.unwrap_err();
+        assert!(err.contains("Column 'non_existent_column' does not exist in table 'users'"));
+    }
+
+    #[test]
+    fn test_insert_target_table_mismatch_rejected() {
+        assert!(validate_insert_target_table("users", "users").is_ok());
+        assert!(validate_insert_target_table("USERS", "users").is_ok());
+
+        let res_diff = validate_insert_target_table("orders", "users");
+        assert!(res_diff.is_err());
+        assert!(res_diff.unwrap_err().contains("does not match active table"));
+
+        let res_empty = validate_insert_target_table("", "users");
+        assert!(res_empty.is_err());
+        assert!(res_empty.unwrap_err().contains("cannot be empty"));
+    }
+
+    #[test]
+    fn test_primary_key_rejected_on_update() {
+        let cols = vec![
+            make_col("id", "int", true, "auto_increment", "NO", None),
+            make_col("email", "varchar(255)", false, "", "NO", None),
+        ];
+
+        let pks = [("id", BindValue::Int(10))];
+        let res = build_update_query("users", "id", BindValue::Int(20), &pks, &cols);
+        assert!(res.is_err());
+        let err = res.unwrap_err();
+        assert!(err.contains("is a primary key and cannot be edited directly"));
     }
 }

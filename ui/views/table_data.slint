@@ -43,6 +43,7 @@ export component TableDataView inherits Rectangle {
     in-out property <string> cell-edit-value: "";
     in-out property <string> cell-edit-error: "";
     in-out property <bool> cell-edit-loading: false;
+    in-out property <bool> cell-edit-is-pk: false;
 
     // Insert Row Modal state
     in-out property <bool> insert-modal-open: false;
@@ -493,22 +494,44 @@ export component TableDataView inherits Rectangle {
                     level: "error";
                 }
 
+                if root.cell-edit-is-pk : Rectangle {
+                    height: 28px;
+                    background: Theme.danger-subtle;
+                    border-color: Theme.danger;
+                    border-width: 1px;
+                    border-radius: Theme.radius;
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        Text {
+                            text: "🔒 Primary key: delete and re-insert instead";
+                            color: Theme.danger;
+                            font-size: Theme.font-xs;
+                            font-weight: 600;
+                            font-family: Theme.font-mono;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
                 VerticalLayout {
                     spacing: 8px;
 
                     TextInputBox {
                         text <=> root.cell-edit-value;
                         placeholder: root.cell-edit-is-null ? "(NULL)" : "Value...";
-                        enabled: !root.cell-edit-is-null && !root.cell-edit-loading;
+                        enabled: !root.cell-edit-is-null && !root.cell-edit-loading && !root.cell-edit-is-pk;
                         accepted => {
-                            root.submit-cell-edit(root.cell-edit-value, root.cell-edit-is-null);
+                            if !root.cell-edit-is-pk {
+                                root.submit-cell-edit(root.cell-edit-value, root.cell-edit-is-null);
+                            }
                         }
                     }
 
                     if root.cell-edit-nullable : Checkbox {
                         text: "Set NULL";
                         checked <=> root.cell-edit-is-null;
-                        enabled: !root.cell-edit-loading;
+                        enabled: !root.cell-edit-loading && !root.cell-edit-is-pk;
                     }
                 }
 
@@ -527,7 +550,7 @@ export component TableDataView inherits Rectangle {
                     PrimaryButton {
                         text: "Save Change";
                         loading: root.cell-edit-loading;
-                        enabled: !root.cell-edit-loading;
+                        enabled: !root.cell-edit-loading && !root.cell-edit-is-pk;
                         clicked => {
                             root.submit-cell-edit(root.cell-edit-value, root.cell-edit-is-null);
                         }
