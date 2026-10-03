@@ -1,0 +1,34 @@
+# Maintainer: okcoe21 <https://github.com/okcoe21>
+pkgname=mysql-gui-bin
+_pkgname=mysql-gui
+pkgver=3.1.0
+pkgrel=1
+pkgdesc="High-performance native MySQL & MariaDB desktop client built with Rust and Slint (Binary release)"
+arch=('x86_64')
+url="https://github.com/okcoe21/MYSQL-GUI"
+license=('custom')
+depends=('fontconfig' 'libxkbcommon' 'libxcb' 'libx11' 'openssl')
+provides=('mysql-gui')
+conflicts=('mysql-gui')
+
+source_x86_64=(
+    "${url}/releases/download/v${pkgver}/mysql-gui-linux-x86_64.tar.gz"
+    "mysql-gui.desktop"
+    "mysql-gui.png"
+)
+sha256sums_x86_64=(
+    'bad4e8dfc294e7f1c07a396ca44be85baf69a8d94dfd4f4ef51b99a2fcdfdc2a'
+    '41f4751c035fc5de37cd862726018d7928ace2633b5aa2eb8123287c3ad56429'
+    '6af0680fbb534a83b059b24d92f73c21fff34c08a2f22dc81da8b822172e36f2'
+)
+
+package() {
+    # Install application binary
+    install -Dm755 "${srcdir}/${_pkgname}" "${pkgdir}/usr/bin/${_pkgname}"
+
+    # Install FreeDesktop .desktop shortcut
+    install -Dm644 "${srcdir}/mysql-gui.desktop" "${pkgdir}/usr/share/applications/${_pkgname}.desktop"
+
+    # Install 256x256 application icon
+    install -Dm644 "${srcdir}/mysql-gui.png" "${pkgdir}/usr/share/icons/hicolor/256x256/apps/${_pkgname}.png"
+}

@@ -114,12 +114,52 @@ Zero Electron. Zero Node.js. Zero web runtime overhead. Just pure native speed a
 
 ---
 
+## Download & Installation
+
+Pre-compiled, zero-dependency release artifacts are available directly on the [**GitHub Releases Page**](https://github.com/okcoe21/MYSQL-GUI/releases/latest).
+
+### Linux (Universal AppImage)
+Works across all major Linux distributions (Ubuntu, Debian, Fedora, Arch, openSUSE, CentOS, Void) and kernels:
+```bash
+# 1. Download the latest AppImage
+curl -LO https://github.com/okcoe21/MYSQL-GUI/releases/latest/download/mysql-gui-linux-x86_64.AppImage
+
+# 2. Make it executable
+chmod +x mysql-gui-linux-x86_64.AppImage
+
+# 3. Launch
+./mysql-gui-linux-x86_64.AppImage
+```
+
+### Arch Linux / CachyOS / Manjaro (AUR)
+Install using any AUR helper:
+```bash
+# Pre-compiled binary package
+yay -S mysql-gui-bin
+
+# Or build from source
+yay -S mysql-gui
+```
+Or build manually from this repository:
+```bash
+cd packaging/arch
+makepkg -si
+```
+
+### macOS (Universal Binary)
+Download `mysql-gui-macos-universal.tar.gz` from Releases. Built as a Universal 2 binary running natively on both **Apple Silicon** (M1–M4 ARM64) and **Intel** (x86_64) Macs.
+
+### Windows (x86_64)
+Download `mysql-gui-windows-x86_64.zip` from Releases, extract, and run `mysql-gui.exe` on Windows 10 or Windows 11.
+
+---
+
 ## Getting Started
 
 ### Prerequisites
 - **Rust Toolchain:** `rustc` and `cargo` 1.75+ ([rustup.rs](https://rustup.rs/))
 - **MySQL / MariaDB:** A running MySQL server instance (local or remote)
-- **Linux Packages (if building on Linux):** Standard X11 / Wayland development headers and `libfontconfig` (`libfontconfig1-dev` on Debian/Ubuntu).
+- **Linux Packages (if building from source):** Standard X11 / Wayland development headers and `libfontconfig` (`libfontconfig1-dev` on Debian/Ubuntu, `fontconfig` on Arch).
 
 ### Running in Development
 ```bash

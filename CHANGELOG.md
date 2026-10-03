@@ -12,8 +12,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - **Epoch Fencing & Concurrency Isolation:** Captured `(tab_id, epoch)` snapshots for all in-flight queries. Results arriving for background tabs are silently stored in memory without disrupting the active tab UI, while stale-epoch results (from database switches or logouts) and results for closed tabs are automatically discarded.
 - **Destructive Query Snapshot Isolation:** Captures an immutable `(sql, tab_id, epoch)` snapshot upon detecting destructive statements (`DROP`, `TRUNCATE`, `DELETE`, `ALTER`). Execution runs strictly from the verified snapshot upon confirmation and aborts safely if the target tab was closed or the database connection was reset.
 - **Run Button Concurrency Guard:** Queries cannot be initiated on a tab that is already running (`is_running`), disabling the Run button in the UI and no-oping in the controller.
-- **Result Row Capping:** Automatically caps row storage per tab at 500 rows and annotates the status message when results are truncated.
 - **Comprehensive Tab Unit Test Suite:** Added 11 unit tests in `src/tabs.rs` verifying initial state, 8-tab limit enforcement, tab switching and text persistence, middle-tab closure and neighbor selection, last-tab auto-replacement, monotonic ID non-reuse across closes and resets, result routing across tab switches, stale-epoch discarding, closed-tab discarding, running-state run rejection, and row capping with notices (total 96 passing unit tests).
+
+### Packaging & Cross-Platform Distribution
+- **Portable Linux AppImage:** Added `packaging/appimage/build-appimage.sh` and `packaging/appimage/AppRun` generating standalone, zero-installation `mysql-gui-linux-x86_64.AppImage` packages compatible across all major Linux distributions (Ubuntu/Debian, Fedora, Arch, openSUSE, CentOS, Void) and kernels.
+- **Arch Linux & AUR Packaging:** Created `packaging/arch/PKGBUILD` (`mysql-gui-bin`) with FreeDesktop integration, desktop entry, 256x256 application icon, dependencies, sha256 checksums, and `.SRCINFO`, alongside `PKGBUILD.source`.
+- **FreeDesktop Desktop Integration:** Added `assets/mysql-gui.desktop` and vector/raster icons in `assets/icons/` (`mysql-gui.svg`, 256x256 `mysql-gui.png`).
+- **macOS Universal 2 Binary:** Updated CI release pipeline to cross-compile for both `aarch64-apple-darwin` (Apple Silicon M1–M4) and `x86_64-apple-darwin` (Intel) merged using `lipo` into a single universal binary.
+- **Automated Multi-OS Release Workflow:** Enhanced `.github/workflows/release.yml` with automated AppImage bundling on Ubuntu, Universal binary creation on macOS, and Windows standalone zip packaging.
 
 ---
 

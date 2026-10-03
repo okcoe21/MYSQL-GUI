@@ -1,0 +1,17 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=MySQL GUI
+GenericName=Database Client
+Comment=High-performance native MySQL & MariaDB client built with Rust and Slint
+Exec=mysql-gui %u
+Icon=mysql-gui
+Terminal=false
+Categories=Development;Database;IDE;
+Keywords=mysql;mariadb;sql;database;admin;query;client;table;
+StartupWMClass=mysql-gui
+Actions=NewWindow;
+
+[Desktop Action NewWindow]
+Name=Open New Window
+Exec=mysql-gui

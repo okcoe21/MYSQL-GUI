@@ -24,7 +24,7 @@ jobs:
             asset_name: mysql-gui-windows-x86_64
           - os: macos-latest
             artifact_name: mysql-gui
-            asset_name: mysql-gui-macos-x86_64
+            asset_name: mysql-gui-macos-universal
 
     steps:
       - name: Checkout repository
@@ -34,13 +34,30 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+          sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libfuse2
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build release binary
+      - name: Build release binary (Linux / Windows)
+        if: runner.os != 'macOS'
         run: cargo build --release --verbose
+
+      - name: Build release binary (macOS Universal)
+        if: runner.os == 'macOS'
+        run: |
+          rustup target add x86_64-apple-darwin aarch64-apple-darwin
+          cargo build --release --target aarch64-apple-darwin --verbose
+          cargo build --release --target x86_64-apple-darwin --verbose
+          mkdir -p target/release
+          lipo -create -output target/release/${{ matrix.artifact_name }} \
+            target/aarch64-apple-darwin/release/${{ matrix.artifact_name }} \
+            target/x86_64-apple-darwin/release/${{ matrix.artifact_name }}
+
+      - name: Package Linux AppImage
+        if: runner.os == 'Linux'
+        run: |
+          ./packaging/appimage/build-appimage.sh target/release/${{ matrix.artifact_name }} mysql-gui-linux-x86_64.AppImage
 
       - name: Package artifact (Linux/macOS)
         if: runner.os != 'Windows'
@@ -59,6 +76,8 @@ jobs:
           files: |
             ${{ matrix.asset_name }}.tar.gz
             ${{ matrix.asset_name }}.zip
+            *.AppImage
+          fail_on_unmatched_files: false
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

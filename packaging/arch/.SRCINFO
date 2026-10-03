@@ -1,0 +1,22 @@
+pkgbase = mysql-gui-bin
+	pkgdesc = High-performance native MySQL & MariaDB desktop client built with Rust and Slint (Binary release)
+	pkgver = 3.1.0
+	pkgrel = 1
+	url = https://github.com/okcoe21/MYSQL-GUI
+	arch = x86_64
+	license = custom
+	depends = fontconfig
+	depends = libxkbcommon
+	depends = libxcb
+	depends = libx11
+	depends = openssl
+	provides = mysql-gui
+	conflicts = mysql-gui
+	source_x86_64 = https://github.com/okcoe21/MYSQL-GUI/releases/download/v3.1.0/mysql-gui-linux-x86_64.tar.gz
+	source_x86_64 = mysql-gui.desktop
+	source_x86_64 = mysql-gui.png
+	sha256sums_x86_64 = bad4e8dfc294e7f1c07a396ca44be85baf69a8d94dfd4f4ef51b99a2fcdfdc2a
+	sha256sums_x86_64 = 41f4751c035fc5de37cd862726018d7928ace2633b5aa2eb8123287c3ad56429
+	sha256sums_x86_64 = 6af0680fbb534a83b059b24d92f73c21fff34c08a2f22dc81da8b822172e36f2
+
+pkgname = mysql-gui-bin

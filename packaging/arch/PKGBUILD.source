@@ -1,0 +1,39 @@
+# Maintainer: okcoe21 <https://github.com/okcoe21>
+pkgname=mysql-gui
+pkgver=3.1.0
+pkgrel=1
+pkgdesc="High-performance native MySQL & MariaDB desktop client built with Rust and Slint (Built from source)"
+arch=('x86_64' 'aarch64')
+url="https://github.com/okcoe21/MYSQL-GUI"
+license=('custom')
+depends=('fontconfig' 'libxkbcommon' 'libxcb' 'libx11' 'openssl')
+makedepends=('cargo' 'git')
+provides=('mysql-gui')
+conflicts=('mysql-gui-bin')
+
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/okcoe21/MYSQL-GUI/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+prepare() {
+    cd "${srcdir}/MYSQL-GUI-${pkgver}"
+    cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
+}
+
+build() {
+    cd "${srcdir}/MYSQL-GUI-${pkgver}"
+    export RUSTUP_TOOLCHAIN=stable
+    export CARGO_TARGET_DIR=target
+    cargo build --frozen --release --bin mysql-gui
+}
+
+check() {
+    cd "${srcdir}/MYSQL-GUI-${pkgver}"
+    cargo test --frozen --bin mysql-gui
+}
+
+package() {
+    cd "${srcdir}/MYSQL-GUI-${pkgver}"
+    install -Dm755 "target/release/${pkgname}" "${pkgdir}/usr/bin/${pkgname}"
+    install -Dm644 "assets/mysql-gui.desktop" "${pkgdir}/usr/share/applications/${pkgname}.desktop"
+    install -Dm644 "assets/icons/mysql-gui.png" "${pkgdir}/usr/share/icons/hicolor/256x256/apps/${pkgname}.png"
+}

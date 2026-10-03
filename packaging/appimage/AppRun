@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+
+HERE="$(dirname "$(readlink -f "${0}")")"
+export APPDIR="${HERE}"
+export PATH="${HERE}/usr/bin:${PATH}"
+export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH}"
+export XDG_DATA_DIRS="${HERE}/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+
+if [ -z "${FONTCONFIG_PATH}" ] && [ -d "/etc/fonts" ]; then
+    export FONTCONFIG_PATH="/etc/fonts"
+fi
+
+exec "${HERE}/usr/bin/mysql-gui" "$@"

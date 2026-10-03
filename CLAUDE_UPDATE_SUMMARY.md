@@ -107,12 +107,14 @@ All legacy JavaScript, TypeScript, React, Next.js, and Tauri v2 code has been re
 - [x] **Compilation:** `cargo check` and `cargo build` pass with 0 errors and 0 warnings.
 - [x] **Unit Testing:** `cargo test` passes 96/96 tests covering sanitization, boundary checks, secret redacting, visual query builder generation, transport SSL mode/error mapping, offline SQL query explainer, streaming file dialogs, transactional mutation paths, and multi-query editor tabs.
 - [x] **Multi-Query Editor Tabs:** Pure `TabManager` (`src/tabs.rs`) managing up to 8 tabs with monotonic IDs, epoch fencing, concurrency guards, and isolated background execution routing.
+- [x] **Packaging & Linux Portability:** Added universal portable AppImage builder (`packaging/appimage/build-appimage.sh`, `AppRun`), tested and verified on modern Linux kernels.
+- [x] **Arch Linux & AUR Support:** Provided ready-to-deploy PKGBUILD (`packaging/arch/PKGBUILD`), `PKGBUILD.source`, FreeDesktop desktop entry, 256x256 icon, and generated `.SRCINFO`.
+- [x] **Multi-OS CI/CD:** Enhanced `.github/workflows/release.yml` with Linux AppImage generation, macOS Universal 2 binary creation (`lipo` merging `aarch64` and `x86_64`), and Windows standalone zip packaging.
 - [x] **Offline Query Explainer:** Pure Rust engine with clause breakdown (SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, TRUNCATE) and danger detection (unbounded modifications, DROP, TRUNCATE, unconstrained SELECT *).
 - [x] **Transport Security:** "Require SSL" switch on login enforcing `MySqlSslMode::Required`; active encryption status indicator (`SSL` vs `NOT ENCRYPTED`) with hover tooltips in `TopBar`.
 - [x] **Dead UI Callbacks Fixed:** Visual Query Builder condition filters generate live safe SQL; login connection errors propagate to `AlertBanner`.
 - [x] **Identifier Boundary:** 64-character MySQL identifier limit strictly enforced.
-- [x] **Versioning:** Synchronized to `3.1.0` across `Cargo.toml`, `Cargo.lock`, and `README.md`.
-- [x] **CI/CD:** Multi-platform GitHub Actions workflows active for Linux, Windows, and macOS native builds.
+- [x] **Versioning:** Synchronized to `3.1.0` across `Cargo.toml`, `Cargo.lock`, `README.md`, and `CHANGELOG.md`.
 - [x] **Git Tracking:** Clean working tree with detailed conventional commit history.
 
 ---
@@ -120,5 +122,6 @@ All legacy JavaScript, TypeScript, React, Next.js, and Tauri v2 code has been re
 ## 7. Recommended Next Steps for Future Work
 
 1. **OS Keyring Integration (SEC-10):** Wire `keyring = "2"` into `src/db/auth.rs` to allow persistent, secure credential saving and auto-fill in the login view.
-2. **File Dialog Pipeline:** Hook `rfd` into `export_view.slint` and `import_view.slint` for interactive `.sql` and `.csv` export/import.
-3. **Table Data Mutations:** Add interactive modal dialogues for inserting new rows and editing existing table cells in `table_data.slint`.
+2. **AUR Package Submission:** Push `packaging/arch/*` to AUR (`aur.archlinux.org/mysql-gui-bin.git`) for community distribution.
+3. **AppImageHub Submission:** Consider submitting `mysql-gui` to AppImageHub for catalog indexing.
+
