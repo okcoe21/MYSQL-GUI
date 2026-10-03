@@ -1,15 +1,15 @@
-# MySQL GUI — Project Migration & Status Report (v3.0.7)
+# MySQL GUI — Project Migration & Status Report (v3.0.8)
 
 **Date:** October 3, 2026  
 **Target:** Claude Context / Development Handoff  
 **Project:** `mysql-gui` (`/home/coes/Projects/MYSQL GUI`)  
-**Status:** Successfully Migrated, Security Hardened, RFD Export/Import Pipeline Wired (69/69 Unit Tests Passing)  
+**Status:** Inline Cell Editing & Row Insertion Wired, Safe Transactional Verification, 79/79 Unit Tests Passing  
 
 ---
 
 ## 1. Executive Summary
 
-The application underwent a complete architectural rewrite from a dual Next.js 15 / Tauri v2 hybrid into a **100% native Rust + Slint desktop application** (v3.0.0). Following the migration, an exhaustive security audit of all SQL-building paths and input handling was conducted, resolving all High, Medium, and Low-severity vulnerabilities (v3.0.1 – v3.0.3). In v3.0.4 – v3.0.6, the Visual Query Builder was wired with live SQL generation, login error reporting was connected, transport encryption toggles and indicators were added, and an offline, rule-based SQL query explainer was introduced with clause-by-clause breakdowns and risk detection. In v3.0.7, native non-blocking file dialogs via `rfd::AsyncFileDialog` were wired to export and import pipelines, featuring chunked streaming export (500 rows/batch), RFC 4180 CSV export with formula injection neutralization (`=`, `+`, `-`, `@`), dual-format import views, transactional CSV table data import with column count introspection, and safe SQL script execution with UX confirmation guards for destructive operations (`DROP`, `TRUNCATE`, `DELETE`).
+The application underwent a complete architectural rewrite from a dual Next.js 15 / Tauri v2 hybrid into a **100% native Rust + Slint desktop application** (v3.0.0). Following the migration, an exhaustive security audit of all SQL-building paths and input handling was conducted, resolving all High, Medium, and Low-severity vulnerabilities (v3.0.1 – v3.0.3). In v3.0.4 – v3.0.6, the Visual Query Builder was wired with live SQL generation, login error reporting was connected, transport encryption toggles and indicators were added, and an offline, rule-based SQL query explainer was introduced with clause-by-clause breakdowns and risk detection. In v3.0.7, native non-blocking file dialogs via `rfd::AsyncFileDialog` were wired to export and import pipelines, featuring chunked streaming export (500 rows/batch), RFC 4180 CSV export with formula injection neutralization (`=`, `+`, `-`, `@`), dual-format import views, transactional CSV table data import with column count introspection, and safe SQL script execution with UX confirmation guards for destructive operations (`DROP`, `TRUNCATE`, `DELETE`). In v3.0.8, double-click inline cell editing and an in-grid insert row modal were implemented with safe pure query builders, strict primary key targeting, read-only guards for generated/BLOB/spatial columns, row-locking transaction semantics (`SELECT ... FOR UPDATE`), and automatic read-only protection for tables lacking usable primary keys.
 
 All legacy JavaScript, TypeScript, React, Next.js, and Tauri v2 code has been removed. The repository is now a single-crate, hardened Rust application with instant cold startup, zero web/Chromium runtime dependencies, comprehensive SQL injection prevention, automatic credential redaction, and hardware-accelerated declarative UI rendering.
 

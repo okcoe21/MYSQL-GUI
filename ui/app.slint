@@ -7,7 +7,7 @@ import { TopBar } from "views/topbar.slint";
 import { Sidebar, DatabaseItem } from "views/sidebar.slint";
 import { ServerOverviewView, ProcessItem, DbSummaryItem } from "views/server_overview.slint";
 import { DbOverviewView, TableStatItem } from "views/db_overview.slint";
-import { TableDataView, TableRowData } from "views/table_data.slint";
+import { TableDataView, TableRowData, TableInsertField } from "views/table_data.slint";
 import { StructureViewView, ColumnInfoItem } from "views/structure_view.slint";
 import { SqlEditorView, SqlResultRow } from "views/sql_editor.slint";
 import { HistoryViewView, HistoryDisplayItem } from "views/history_view.slint";
@@ -30,6 +30,7 @@ export {
     DbSummaryItem,
     TableStatItem,
     TableRowData,
+    TableInsertField,
     ColumnInfoItem,
     SqlResultRow,
     HistoryDisplayItem,
@@ -98,6 +99,23 @@ export component AppWindow inherits Window {
     in-out property <string> table-error-message: "";
     in-out property <[string]> table-columns: [];
     in-out property <[TableRowData]> table-rows: [];
+    in-out property <bool> table-has-primary-key: true;
+
+    // Table Data Inline Edit
+    in-out property <bool> table-cell-edit-open: false;
+    in-out property <string> table-cell-edit-col-name: "";
+    in-out property <string> table-cell-edit-col-type: "";
+    in-out property <bool> table-cell-edit-nullable: true;
+    in-out property <bool> table-cell-edit-is-null: false;
+    in-out property <string> table-cell-edit-value: "";
+    in-out property <string> table-cell-edit-error: "";
+    in-out property <bool> table-cell-edit-loading: false;
+
+    // Table Data Insert Modal
+    in-out property <bool> table-insert-modal-open: false;
+    in-out property <[TableInsertField]> table-insert-fields: [];
+    in-out property <string> table-insert-modal-error: "";
+    in-out property <bool> table-insert-modal-loading: false;
 
     // Table Structure
     in-out property <[ColumnInfoItem]> structure-columns: [];
@@ -233,6 +251,19 @@ export component AppWindow inherits Window {
 
     callback update-insert-field(int, string);
     callback submit-insert-row();
+
+    // Table Data Inline Edit Callbacks
+    callback request-cell-edit(int, int);
+    callback submit-cell-edit(string, bool);
+    callback cancel-cell-edit();
+
+    // Table Data Insert Modal Callbacks
+    callback open-insert-modal();
+    callback update-insert-field-val(int, string);
+    callback update-insert-field-null(int, bool);
+    callback update-insert-field-default(int, bool);
+    callback submit-insert-modal();
+    callback cancel-insert-modal();
 
     callback request-truncate-table();
     callback request-drop-table(string);
@@ -529,6 +560,21 @@ export component AppWindow inherits Window {
                         error-message: root.table-error-message;
                         columns: root.table-columns;
                         rows: root.table-rows;
+                        has-primary-key: root.table-has-primary-key;
+
+                        cell-edit-open <=> root.table-cell-edit-open;
+                        cell-edit-col-name: root.table-cell-edit-col-name;
+                        cell-edit-col-type: root.table-cell-edit-col-type;
+                        cell-edit-nullable: root.table-cell-edit-nullable;
+                        cell-edit-is-null <=> root.table-cell-edit-is-null;
+                        cell-edit-value <=> root.table-cell-edit-value;
+                        cell-edit-error: root.table-cell-edit-error;
+                        cell-edit-loading: root.table-cell-edit-loading;
+
+                        insert-modal-open <=> root.table-insert-modal-open;
+                        insert-fields: root.table-insert-fields;
+                        insert-modal-error: root.table-insert-modal-error;
+                        insert-modal-loading: root.table-insert-modal-loading;
 
                         prev-page => { root.prev-table-page(); }
                         next-page => { root.next-table-page(); }
@@ -537,6 +583,17 @@ export component AppWindow inherits Window {
                         delete-row(idx) => { root.delete-table-row(idx); }
                         refresh => { root.refresh-table-data(); }
                         navigate-insert => { root.active-view = "insert"; root.navigate-view("insert"); }
+
+                        request-cell-edit(r_idx, c_idx) => { root.request-cell-edit(r_idx, c_idx); }
+                        submit-cell-edit(val, is_null) => { root.submit-cell-edit(val, is_null); }
+                        cancel-cell-edit => { root.cancel-cell-edit(); }
+
+                        open-insert-modal => { root.open-insert-modal(); }
+                        update-insert-field-val(idx, val) => { root.update-insert-field-val(idx, val); }
+                        update-insert-field-null(idx, is_null) => { root.update-insert-field-null(idx, is_null); }
+                        update-insert-field-default(idx, is_def) => { root.update-insert-field-default(idx, is_def); }
+                        submit-insert-modal => { root.submit-insert-modal(); }
+                        cancel-insert-modal => { root.cancel-insert-modal(); }
                     }
 
                     if root.active-view == "structure" : structure_view := StructureViewView {

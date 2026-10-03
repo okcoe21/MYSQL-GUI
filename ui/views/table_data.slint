@@ -1,10 +1,20 @@
 import { Theme } from "../theme.slint";
 import { PanelCard, AlertBanner } from "../components/card.slint";
 import { PrimaryButton, SecondaryButton, DangerButton } from "../components/button.slint";
+import { TextInputBox, Checkbox } from "../components/input.slint";
 
 export struct TableRowData {
     index: int,
     cells: [string],
+}
+
+export struct TableInsertField {
+    name: string,
+    col_type: string,
+    nullable: bool,
+    is_default: bool,
+    is_null: bool,
+    value: string,
 }
 
 export component TableDataView inherits Rectangle {
@@ -22,6 +32,24 @@ export component TableDataView inherits Rectangle {
     in-out property <[string]> columns: [];
     in-out property <[TableRowData]> rows: [];
 
+    in-out property <bool> has-primary-key: true;
+
+    // Inline Cell Edit Modal state
+    in-out property <bool> cell-edit-open: false;
+    in-out property <string> cell-edit-col-name: "";
+    in-out property <string> cell-edit-col-type: "";
+    in-out property <bool> cell-edit-nullable: true;
+    in-out property <bool> cell-edit-is-null: false;
+    in-out property <string> cell-edit-value: "";
+    in-out property <string> cell-edit-error: "";
+    in-out property <bool> cell-edit-loading: false;
+
+    // Insert Row Modal state
+    in-out property <bool> insert-modal-open: false;
+    in-out property <[TableInsertField]> insert-fields: [];
+    in-out property <string> insert-modal-error: "";
+    in-out property <bool> insert-modal-loading: false;
+
     callback prev-page();
     callback next-page();
     callback set-limit(int);
@@ -29,6 +57,19 @@ export component TableDataView inherits Rectangle {
     callback delete-row(int);
     callback refresh();
     callback navigate-insert();
+
+    // Inline edit callbacks
+    callback request-cell-edit(int, int);
+    callback submit-cell-edit(string, bool);
+    callback cancel-cell-edit();
+
+    // Insert modal callbacks
+    callback open-insert-modal();
+    callback update-insert-field-val(int, string);
+    callback update-insert-field-null(int, bool);
+    callback update-insert-field-default(int, bool);
+    callback submit-insert-modal();
+    callback cancel-insert-modal();
 
     background: Theme.bg-base;
 
@@ -40,7 +81,7 @@ export component TableDataView inherits Rectangle {
         HorizontalLayout {
             alignment: space-between;
 
-            // Left: Table info + Row count
+            // Left: Table info + Row count + Read-only badge
             HorizontalLayout {
                 spacing: 12px;
 
@@ -59,6 +100,26 @@ export component TableDataView inherits Rectangle {
                     font-size: Theme.font-xs;
                     font-family: Theme.font-mono;
                     vertical-alignment: center;
+                }
+
+                if !root.has-primary-key : Rectangle {
+                    height: 24px;
+                    background: Theme.danger-subtle;
+                    border-color: Theme.danger;
+                    border-width: 1px;
+                    border-radius: Theme.radius;
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        Text {
+                            text: "⚠️ No primary key: read-only";
+                            color: Theme.danger;
+                            font-size: Theme.font-xs;
+                            font-weight: 600;
+                            font-family: Theme.font-mono;
+                            vertical-alignment: center;
+                        }
+                    }
                 }
             }
 
@@ -193,7 +254,7 @@ export component TableDataView inherits Rectangle {
                     text: "+ Insert Row";
                     custom-font-size: Theme.font-xs;
                     height: 26px;
-                    clicked => { root.navigate-insert(); }
+                    clicked => { root.open-insert-modal(); }
                 }
             }
         }
@@ -303,7 +364,7 @@ export component TableDataView inherits Rectangle {
 
                         for row in root.rows: Rectangle {
                             height: 34px;
-                            background: row_touch.has-hover ? Theme.bg-hover : (Math.mod(row.index, 2) == 0 ? Theme.bg-panel : Theme.bg-base);
+                            background: Math.mod(row.index, 2) == 0 ? Theme.bg-panel : Theme.bg-base;
                             border-color: Theme.border;
                             border-width: 1px;
 
@@ -316,7 +377,7 @@ export component TableDataView inherits Rectangle {
                                 HorizontalLayout {
                                     width: 65px;
 
-                                    del_btn := Rectangle {
+                                    if root.has-primary-key : del_btn := Rectangle {
                                         width: 24px;
                                         height: 24px;
                                         border-radius: Theme.radius;
@@ -336,11 +397,23 @@ export component TableDataView inherits Rectangle {
                                             clicked => { root.delete-row(row.index); }
                                         }
                                     }
+
+                                    if !root.has-primary-key : Rectangle {
+                                        width: 24px;
+                                        height: 24px;
+                                        Text {
+                                            text: "🔒";
+                                            font-size: 11px;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                    }
                                 }
 
                                 // Column cells
-                                for cell in row.cells: Rectangle {
+                                for cell[col_idx] in row.cells: Rectangle {
                                     height: 34px;
+                                    background: cell_touch.has-hover && root.has-primary-key ? Theme.bg-hover : transparent;
 
                                     HorizontalLayout {
                                         padding-left: 6px;
@@ -355,10 +428,241 @@ export component TableDataView inherits Rectangle {
                                             overflow: elide;
                                         }
                                     }
+
+                                    cell_touch := TouchArea {
+                                        enabled: root.has-primary-key;
+                                        mouse-cursor: root.has-primary-key ? pointer : default;
+                                        double-clicked => {
+                                            root.request-cell-edit(row.index, col_idx);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Cell Edit Modal Overlay
+    if root.cell-edit-open : Rectangle {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+
+        TouchArea {
+            // Block background clicks
+        }
+
+        Rectangle {
+            width: 440px;
+            background: Theme.bg-panel;
+            border-color: Theme.accent;
+            border-width: 1px;
+            border-radius: Theme.radius;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+
+            VerticalLayout {
+                padding: 20px;
+                spacing: 14px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "✏️ Edit Cell: " + root.cell-edit-col-name;
+                        color: Theme.accent;
+                        font-size: Theme.font-md;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+                    Text {
+                        text: "[" + root.cell-edit-col-type + "]";
+                        color: Theme.text-muted;
+                        font-size: Theme.font-xs;
+                        font-family: Theme.font-mono;
+                        vertical-alignment: center;
+                    }
+                }
+
+                if root.cell-edit-error != "" : AlertBanner {
+                    text: root.cell-edit-error;
+                    level: "error";
+                }
+
+                VerticalLayout {
+                    spacing: 8px;
+
+                    TextInputBox {
+                        text <=> root.cell-edit-value;
+                        placeholder: root.cell-edit-is-null ? "(NULL)" : "Value...";
+                        enabled: !root.cell-edit-is-null && !root.cell-edit-loading;
+                        accepted => {
+                            root.submit-cell-edit(root.cell-edit-value, root.cell-edit-is-null);
+                        }
+                    }
+
+                    if root.cell-edit-nullable : Checkbox {
+                        text: "Set NULL";
+                        checked <=> root.cell-edit-is-null;
+                        enabled: !root.cell-edit-loading;
+                    }
+                }
+
+                HorizontalLayout {
+                    alignment: end;
+                    spacing: 8px;
+
+                    SecondaryButton {
+                        text: "Cancel";
+                        enabled: !root.cell-edit-loading;
+                        clicked => {
+                            root.cancel-cell-edit();
+                        }
+                    }
+
+                    PrimaryButton {
+                        text: "Save Change";
+                        loading: root.cell-edit-loading;
+                        enabled: !root.cell-edit-loading;
+                        clicked => {
+                            root.submit-cell-edit(root.cell-edit-value, root.cell-edit-is-null);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Insert Row Modal Overlay
+    if root.insert-modal-open : Rectangle {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+
+        TouchArea {
+            // Block background clicks
+        }
+
+        Rectangle {
+            width: 560px;
+            height: Math.min(parent.height - 60px, 520px);
+            background: Theme.bg-panel;
+            border-color: Theme.border;
+            border-width: 1px;
+            border-radius: Theme.radius;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+
+            VerticalLayout {
+                padding: 20px;
+                spacing: 12px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "➕ Insert New Row - " + root.table-name;
+                        color: Theme.accent;
+                        font-size: Theme.font-md;
+                        font-weight: 700;
+                        font-family: Theme.font-mono;
+                    }
+                }
+
+                if root.insert-modal-error != "" : AlertBanner {
+                    text: root.insert-modal-error;
+                    level: "error";
+                }
+
+                Flickable {
+                    vertical-stretch: 1;
+                    content-height: modal_fields.preferred-height;
+
+                    modal_fields := VerticalLayout {
+                        spacing: 12px;
+                        padding-right: 8px;
+
+                        for fld[idx] in root.insert-fields : VerticalLayout {
+                            spacing: 4px;
+
+                            HorizontalLayout {
+                                alignment: space-between;
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    Text {
+                                        text: fld.name;
+                                        color: Theme.foreground;
+                                        font-size: Theme.font-xs;
+                                        font-weight: 600;
+                                        font-family: Theme.font-mono;
+                                        vertical-alignment: center;
+                                    }
+                                    Text {
+                                        text: "(" + fld.col_type + ")";
+                                        color: Theme.text-subtle;
+                                        font-size: Theme.font-xs;
+                                        font-family: Theme.font-mono;
+                                        vertical-alignment: center;
+                                    }
+                                }
+
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    Checkbox {
+                                        text: "Default/Auto";
+                                        checked: fld.is_default;
+                                        enabled: !root.insert-modal-loading;
+                                        toggled(c) => {
+                                            root.update-insert-field-default(idx, c);
+                                        }
+                                    }
+
+                                    if fld.nullable : Checkbox {
+                                        text: "NULL";
+                                        checked: fld.is_null;
+                                        enabled: !fld.is_default && !root.insert-modal-loading;
+                                        toggled(c) => {
+                                            root.update-insert-field-null(idx, c);
+                                        }
+                                    }
                                 }
                             }
 
-                            row_touch := TouchArea {}
+                            TextInputBox {
+                                text: fld.value;
+                                placeholder: fld.is_default ? "(Default / Auto Increment)" : (fld.is_null ? "(NULL)" : "Value...");
+                                enabled: !fld.is_default && !fld.is_null && !root.insert-modal-loading;
+                                edited(t) => {
+                                    root.update-insert-field-val(idx, t);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    alignment: end;
+                    spacing: 8px;
+
+                    SecondaryButton {
+                        text: "Cancel";
+                        enabled: !root.insert-modal-loading;
+                        clicked => {
+                            root.cancel-insert-modal();
+                        }
+                    }
+
+                    PrimaryButton {
+                        text: "💾 Insert Row";
+                        loading: root.insert-modal-loading;
+                        enabled: !root.insert-modal-loading;
+                        clicked => {
+                            root.submit-insert-modal();
                         }
                     }
                 }

@@ -6,14 +6,22 @@ use serde_json::Value;
 use crate::{
     AppWindow, ColumnInfoItem, CreateTableColumnItem, DatabaseItem, DbSummaryItem, DiagramTableItem,
     HistoryDisplayItem, InsertFieldItem, MockColumnBlueprint, ProcessItem, RelationItem, SlowLogItem,
-    SqlResultRow, TableRowData, TableStatItem, UserItem,
+    SqlResultRow, TableRowData, TableStatItem, UserItem, TableInsertField,
 };
 use crate::state::SharedState;
 use crate::db::{
-    auth, database, table, data, query, server, objects, maintenance,
+    auth, database, table, data::{self, BindValue}, query, server, objects, maintenance,
     history::HistoryManager,
+    models::TableColumnInfo,
     sanitize::{build_query_builder_select, sanitize_identifier, validate_column_length, is_destructive},
 };
+
+#[derive(Clone)]
+pub struct PendingCellEdit {
+    pub table: String,
+    pub column: String,
+    pub pk_values: Vec<(String, BindValue)>,
+}
 
 fn format_size(bytes: i64) -> String {
     if bytes <= 0 {
@@ -39,12 +47,15 @@ pub struct AppController {
     history_mgr: Arc<HistoryManager>,
     current_db: Arc<Mutex<String>>,
     current_table: Arc<Mutex<String>>,
+    current_table_columns: Arc<Mutex<Vec<TableColumnInfo>>>,
     table_limit: Arc<Mutex<i64>>,
     table_offset: Arc<Mutex<i64>>,
     table_sort_col: Arc<Mutex<Option<String>>>,
     table_sort_order: Arc<Mutex<String>>,
     create_columns: Arc<Mutex<Vec<CreateTableColumnItem>>>,
     insert_fields: Arc<Mutex<Vec<InsertFieldItem>>>,
+    table_insert_fields: Arc<Mutex<Vec<TableInsertField>>>,
+    pending_cell_edit: Arc<Mutex<Option<PendingCellEdit>>>,
     mock_blueprint: Arc<Mutex<Vec<MockColumnBlueprint>>>,
     export_format: Arc<Mutex<String>>,
     export_structure: Arc<Mutex<bool>>,
@@ -61,6 +72,7 @@ impl AppController {
             history_mgr: Arc::new(HistoryManager::new()),
             current_db: Arc::new(Mutex::new(String::new())),
             current_table: Arc::new(Mutex::new(String::new())),
+            current_table_columns: Arc::new(Mutex::new(Vec::new())),
             table_limit: Arc::new(Mutex::new(50)),
             table_offset: Arc::new(Mutex::new(0)),
             table_sort_col: Arc::new(Mutex::new(None)),
@@ -74,6 +86,8 @@ impl AppController {
                 is_auto_increment: true,
             }])),
             insert_fields: Arc::new(Mutex::new(Vec::new())),
+            table_insert_fields: Arc::new(Mutex::new(Vec::new())),
+            pending_cell_edit: Arc::new(Mutex::new(None)),
             mock_blueprint: Arc::new(Mutex::new(Vec::new())),
             export_format: Arc::new(Mutex::new("sql".to_string())),
             export_structure: Arc::new(Mutex::new(true)),
@@ -212,8 +226,11 @@ impl AppController {
                 *ctrl.current_table.lock().unwrap() = table_name.to_string();
                 *ctrl.table_offset.lock().unwrap() = 0;
                 *ctrl.table_sort_col.lock().unwrap() = None;
+                *ctrl.pending_cell_edit.lock().unwrap() = None;
                 ctrl.state.set_current_db(Some(db_name.to_string()));
                 if let Some(app) = weak.upgrade() {
+                    app.set_table_cell_edit_open(false);
+                    app.set_table_insert_modal_open(false);
                     app.set_selected_db(db_name);
                     app.set_selected_table(table_name);
                     app.set_active_view("browse".into());
@@ -562,19 +579,347 @@ impl AppController {
                 tokio::spawn(async move {
                     let db = ctrl.current_db.lock().unwrap().clone();
                     let tbl = ctrl.current_table.lock().unwrap().clone();
+                    let cols = ctrl.current_table_columns.lock().unwrap().clone();
+                    let offset = *ctrl.table_offset.lock().unwrap();
+                    let local_idx = if (row_idx as i64) >= offset {
+                        (row_idx as i64 - offset) as usize
+                    } else {
+                        row_idx as usize
+                    };
+
                     let target_row = {
                         let raw_rows = ctrl.raw_table_rows.lock().unwrap();
-                        raw_rows.get(row_idx as usize).cloned()
+                        raw_rows.get(local_idx).cloned()
                     };
 
                     if let Some(row_val) = target_row {
-                        let _ = data::delete_row(&ctrl.state, &db, &tbl, &row_val).await;
+                        let pri_cols: Vec<_> = cols.iter().filter(|c| c.is_primary()).collect();
+                        if !pri_cols.is_empty() && !pri_cols.iter().any(|c| c.has_unsupported_pk_type()) {
+                            let mut pk_values = Vec::new();
+                            for pri in &pri_cols {
+                                let val = row_val.as_object().and_then(|obj| obj.get(&pri.field)).unwrap_or(&Value::Null);
+                                pk_values.push((pri.field.as_str(), BindValue::from(val)));
+                            }
+                            let del_res = data::delete_row(&ctrl.state, &db, &tbl, &pk_values, &cols).await;
+                            if del_res.is_ok() {
+                                let sanitized_table = sanitize_identifier(&tbl).unwrap_or_else(|_| tbl.clone());
+                                let where_parts: Vec<String> = pri_cols.iter().map(|p| format!("{} = ?", sanitize_identifier(&p.field).unwrap_or_else(|_| p.field.clone()))).collect();
+                                let query_str = format!("DELETE FROM {} WHERE {} LIMIT 1", sanitized_table, where_parts.join(" AND "));
+                                ctrl.history_mgr.add(&query_str, Some(&db));
+                            }
+                        }
                     }
 
                     let _ = weak.upgrade_in_event_loop(move |app| {
                         ctrl.refresh_table_data(&app);
                     });
                 });
+            });
+        }
+
+        // Table Data: Inline Cell Edit Callbacks
+        {
+            let weak = weak.clone();
+            let ctrl = self.clone();
+            app.on_request_cell_edit(move |row_idx, col_idx| {
+                let cols = ctrl.current_table_columns.lock().unwrap().clone();
+                let pri_cols: Vec<_> = cols.iter().filter(|c| c.is_primary()).collect();
+                if pri_cols.is_empty() || pri_cols.iter().any(|c| c.has_unsupported_pk_type()) {
+                    return;
+                }
+
+                let offset = *ctrl.table_offset.lock().unwrap();
+                let local_idx = if (row_idx as i64) >= offset {
+                    (row_idx as i64 - offset) as usize
+                } else {
+                    row_idx as usize
+                };
+
+                let raw_rows = ctrl.raw_table_rows.lock().unwrap();
+                let target_row = match raw_rows.get(local_idx) {
+                    Some(r) => r.clone(),
+                    None => return,
+                };
+
+                let target_col = match cols.get(col_idx as usize) {
+                    Some(c) => c.clone(),
+                    None => return,
+                };
+
+                if target_col.is_read_only() {
+                    return;
+                }
+
+                let mut captured_pks = Vec::new();
+                for pri in &pri_cols {
+                    let val = target_row.as_object().and_then(|obj| obj.get(&pri.field)).unwrap_or(&Value::Null);
+                    captured_pks.push((pri.field.clone(), BindValue::from(val)));
+                }
+
+                let tbl = ctrl.current_table.lock().unwrap().clone();
+                *ctrl.pending_cell_edit.lock().unwrap() = Some(PendingCellEdit {
+                    table: tbl,
+                    column: target_col.field.clone(),
+                    pk_values: captured_pks,
+                });
+
+                let cell_val = target_row.as_object().and_then(|obj| obj.get(&target_col.field)).unwrap_or(&Value::Null);
+                let is_null = cell_val.is_null();
+                let val_str = match cell_val {
+                    Value::Null => String::new(),
+                    Value::String(s) => s.clone(),
+                    other => other.to_string(),
+                };
+
+                if let Some(app) = weak.upgrade() {
+                    app.set_table_cell_edit_col_name(target_col.field.clone().into());
+                    app.set_table_cell_edit_col_type(target_col.r#type.clone().into());
+                    app.set_table_cell_edit_nullable(target_col.is_nullable());
+                    app.set_table_cell_edit_is_null(is_null);
+                    app.set_table_cell_edit_value(val_str.into());
+                    app.set_table_cell_edit_error("".into());
+                    app.set_table_cell_edit_loading(false);
+                    app.set_table_cell_edit_open(true);
+                }
+            });
+        }
+
+        {
+            let weak = weak.clone();
+            let ctrl = self.clone();
+            app.on_submit_cell_edit(move |new_val, is_null| {
+                let pending = match ctrl.pending_cell_edit.lock().unwrap().clone() {
+                    Some(p) => p,
+                    None => return,
+                };
+
+                let weak = weak.clone();
+                let ctrl = ctrl.clone();
+
+                if let Some(app) = weak.upgrade() {
+                    app.set_table_cell_edit_loading(true);
+                    app.set_table_cell_edit_error("".into());
+                }
+
+                tokio::spawn(async move {
+                    let db = ctrl.current_db.lock().unwrap().clone();
+                    let cols = ctrl.current_table_columns.lock().unwrap().clone();
+                    let bind_val = if is_null {
+                        BindValue::Null
+                    } else {
+                        BindValue::String(new_val.to_string())
+                    };
+
+                    let pk_refs: Vec<(&str, BindValue)> = pending.pk_values.iter().map(|(k, v)| (k.as_str(), v.clone())).collect();
+
+                    let res = data::update_row(
+                        &ctrl.state,
+                        &db,
+                        &pending.table,
+                        &pending.column,
+                        bind_val,
+                        &pk_refs,
+                        &cols,
+                    ).await;
+
+                    let query_str = {
+                        let sanitized_table = sanitize_identifier(&pending.table).unwrap_or_else(|_| pending.table.clone());
+                        let sanitized_col = sanitize_identifier(&pending.column).unwrap_or_else(|_| pending.column.clone());
+                        let where_parts: Vec<String> = pending.pk_values.iter().map(|(k, _)| format!("{} = ?", sanitize_identifier(k).unwrap_or_else(|_| k.to_string()))).collect();
+                        format!("UPDATE {} SET {} = ? WHERE {} LIMIT 1", sanitized_table, sanitized_col, where_parts.join(" AND "))
+                    };
+
+                    let _ = weak.upgrade_in_event_loop(move |app| {
+                        app.set_table_cell_edit_loading(false);
+                        match res {
+                            Ok(_) => {
+                                app.set_table_cell_edit_open(false);
+                                *ctrl.pending_cell_edit.lock().unwrap() = None;
+                                ctrl.history_mgr.add(&query_str, Some(&db));
+                                ctrl.refresh_table_data(&app);
+                            }
+                            Err(err) => {
+                                app.set_table_cell_edit_error(err.into());
+                            }
+                        }
+                    });
+                });
+            });
+        }
+
+        {
+            let weak = weak.clone();
+            let ctrl = self.clone();
+            app.on_cancel_cell_edit(move || {
+                *ctrl.pending_cell_edit.lock().unwrap() = None;
+                if let Some(app) = weak.upgrade() {
+                    app.set_table_cell_edit_open(false);
+                    app.set_table_cell_edit_error("".into());
+                }
+            });
+        }
+
+        // Table Data: Insert Modal Callbacks
+        {
+            let weak = weak.clone();
+            let ctrl = self.clone();
+            app.on_open_insert_modal(move || {
+                let cols = ctrl.current_table_columns.lock().unwrap().clone();
+                let mut insert_fields = Vec::new();
+
+                for col in cols {
+                    if col.is_generated() {
+                        continue;
+                    }
+                    let is_auto = col.is_auto_increment();
+                    let has_default = col.default.is_some();
+                    let is_nullable = col.is_nullable();
+                    let default_checked = is_auto || has_default;
+                    let is_null_checked = !default_checked && is_nullable;
+
+                    insert_fields.push(TableInsertField {
+                        name: col.field.into(),
+                        col_type: col.r#type.into(),
+                        nullable: is_nullable,
+                        is_default: default_checked,
+                        is_null: is_null_checked,
+                        value: "".into(),
+                    });
+                }
+
+                *ctrl.table_insert_fields.lock().unwrap() = insert_fields.clone();
+
+                if let Some(app) = weak.upgrade() {
+                    app.set_table_insert_fields(ModelRc::from(Rc::new(VecModel::from(insert_fields))));
+                    app.set_table_insert_modal_error("".into());
+                    app.set_table_insert_modal_loading(false);
+                    app.set_table_insert_modal_open(true);
+                }
+            });
+        }
+
+        {
+            let ctrl = self.clone();
+            let weak = weak.clone();
+            app.on_update_insert_field_val(move |idx, val| {
+                let mut fields = ctrl.table_insert_fields.lock().unwrap();
+                if let Some(fld) = fields.get_mut(idx as usize) {
+                    fld.value = val;
+                    fld.is_default = false;
+                    fld.is_null = false;
+                }
+                if let Some(app) = weak.upgrade() {
+                    app.set_table_insert_fields(ModelRc::from(Rc::new(VecModel::from(fields.clone()))));
+                }
+            });
+        }
+
+        {
+            let ctrl = self.clone();
+            let weak = weak.clone();
+            app.on_update_insert_field_null(move |idx, is_null| {
+                let mut fields = ctrl.table_insert_fields.lock().unwrap();
+                if let Some(fld) = fields.get_mut(idx as usize) {
+                    fld.is_null = is_null;
+                    if is_null {
+                        fld.is_default = false;
+                    }
+                }
+                if let Some(app) = weak.upgrade() {
+                    app.set_table_insert_fields(ModelRc::from(Rc::new(VecModel::from(fields.clone()))));
+                }
+            });
+        }
+
+        {
+            let ctrl = self.clone();
+            let weak = weak.clone();
+            app.on_update_insert_field_default(move |idx, is_def| {
+                let mut fields = ctrl.table_insert_fields.lock().unwrap();
+                if let Some(fld) = fields.get_mut(idx as usize) {
+                    fld.is_default = is_def;
+                    if is_def {
+                        fld.is_null = false;
+                    }
+                }
+                if let Some(app) = weak.upgrade() {
+                    app.set_table_insert_fields(ModelRc::from(Rc::new(VecModel::from(fields.clone()))));
+                }
+            });
+        }
+
+        {
+            let weak = weak.clone();
+            let ctrl = self.clone();
+            app.on_submit_insert_modal(move || {
+                let weak = weak.clone();
+                let ctrl = ctrl.clone();
+
+                if let Some(app) = weak.upgrade() {
+                    app.set_table_insert_modal_loading(true);
+                    app.set_table_insert_modal_error("".into());
+                }
+
+                tokio::spawn(async move {
+                    let db = ctrl.current_db.lock().unwrap().clone();
+                    let tbl = ctrl.current_table.lock().unwrap().clone();
+                    let fields = ctrl.table_insert_fields.lock().unwrap().clone();
+                    let cols = ctrl.current_table_columns.lock().unwrap().clone();
+
+                    let mut insert_tuples = Vec::new();
+                    for f in &fields {
+                        let opt_val = if f.is_default {
+                            None
+                        } else if f.is_null {
+                            Some(BindValue::Null)
+                        } else {
+                            Some(BindValue::String(f.value.to_string()))
+                        };
+                        insert_tuples.push((f.name.as_str(), opt_val));
+                    }
+
+                    let res = data::insert_row(&ctrl.state, &db, &tbl, &insert_tuples, &cols).await;
+
+                    let query_str = {
+                        let non_defaults: Vec<String> = fields
+                            .iter()
+                            .filter(|f| !f.is_default)
+                            .map(|f| sanitize_identifier(&f.name).unwrap_or_else(|_| f.name.to_string()))
+                            .collect();
+                        let sanitized_table = sanitize_identifier(&tbl).unwrap_or_else(|_| tbl.clone());
+                        let col_str = if non_defaults.is_empty() {
+                            "() VALUES ()".to_string()
+                        } else {
+                            let placeholders: Vec<&str> = non_defaults.iter().map(|_| "?").collect();
+                            format!("({}) VALUES ({})", non_defaults.join(", "), placeholders.join(", "))
+                        };
+                        format!("INSERT INTO {} {}", sanitized_table, col_str)
+                    };
+
+                    let _ = weak.upgrade_in_event_loop(move |app| {
+                        app.set_table_insert_modal_loading(false);
+                        match res {
+                            Ok(_) => {
+                                app.set_table_insert_modal_open(false);
+                                ctrl.history_mgr.add(&query_str, Some(&db));
+                                ctrl.refresh_table_data(&app);
+                            }
+                            Err(err) => {
+                                app.set_table_insert_modal_error(err.into());
+                            }
+                        }
+                    });
+                });
+            });
+        }
+
+        {
+            let weak = weak.clone();
+            app.on_cancel_insert_modal(move || {
+                if let Some(app) = weak.upgrade() {
+                    app.set_table_insert_modal_open(false);
+                    app.set_table_insert_modal_error("".into());
+                }
             });
         }
 
@@ -750,17 +1095,19 @@ impl AppController {
                     let tbl = ctrl.current_table.lock().unwrap().clone();
                     let fields = ctrl.insert_fields.lock().unwrap().clone();
 
-                    let mut map = serde_json::Map::new();
-                    for f in fields {
+                    let mut insert_tuples = Vec::new();
+                    for f in &fields {
                         let val_str = f.value.to_string();
-                        if val_str.is_empty() {
-                            map.insert(f.name.to_string(), Value::Null);
+                        let opt_val = if val_str.is_empty() {
+                            None
                         } else {
-                            map.insert(f.name.to_string(), Value::String(val_str));
-                        }
+                            Some(BindValue::String(val_str))
+                        };
+                        insert_tuples.push((f.name.as_str(), opt_val));
                     }
 
-                    let res = data::insert_row(&ctrl.state, &db, &tbl, &Value::Object(map)).await;
+                    let cols = ctrl.current_table_columns.lock().unwrap().clone();
+                    let res = data::insert_row(&ctrl.state, &db, &tbl, &insert_tuples, &cols).await;
                     let _ = weak.upgrade_in_event_loop(move |app| {
                         if res.is_ok() {
                             app.set_active_view("browse".into());
@@ -1541,25 +1888,36 @@ impl AppController {
 
         let state = self.state.clone();
         let raw_cache = self.raw_table_rows.clone();
+        let current_cols = self.current_table_columns.clone();
         let weak = app.as_weak();
 
         app.set_table_loading(true);
         app.set_table_error_message("".into());
 
         tokio::spawn(async move {
-            let res = data::get_data(
-                &state,
-                &db,
-                &tbl,
-                limit,
-                offset,
-                sort_col.as_deref(),
-                Some(sort_order.as_str()),
-            ).await;
+            let (data_res, structure_res) = tokio::join!(
+                data::get_data(
+                    &state,
+                    &db,
+                    &tbl,
+                    limit,
+                    offset,
+                    sort_col.as_deref(),
+                    Some(sort_order.as_str()),
+                ),
+                table::get_structure(&state, &db, &tbl)
+            );
 
             let _ = weak.upgrade_in_event_loop(move |app| {
                 app.set_table_loading(false);
-                match res {
+
+                let cols = structure_res.unwrap_or_default();
+                let pri_cols: Vec<_> = cols.iter().filter(|c| c.is_primary()).collect();
+                let has_usable_pk = !pri_cols.is_empty() && !pri_cols.iter().any(|c| c.has_unsupported_pk_type());
+                *current_cols.lock().unwrap() = cols;
+                app.set_table_has_primary_key(has_usable_pk);
+
+                match data_res {
                     Ok(data_resp) => {
                         *raw_cache.lock().unwrap() = data_resp.data.clone();
                         app.set_table_total_rows(data_resp.pagination.total as i32);

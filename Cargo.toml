@@ -1,6 +1,6 @@
 [package]
 name = "mysql-gui"
-version = "3.0.7"
+version = "3.0.8"
 edition = "2021"
 authors = ["coes"]
 description = "Fast, lightweight native MySQL client built with Slint and Rust"

@@ -96,6 +96,54 @@ pub struct TableColumnInfo {
     pub extra: String,
 }
 
+impl TableColumnInfo {
+    pub fn is_nullable(&self) -> bool {
+        self.null.eq_ignore_ascii_case("YES")
+    }
+
+    pub fn is_primary(&self) -> bool {
+        self.key.eq_ignore_ascii_case("PRI")
+    }
+
+    pub fn is_auto_increment(&self) -> bool {
+        self.extra.to_lowercase().contains("auto_increment")
+    }
+
+    pub fn is_generated(&self) -> bool {
+        let e = self.extra.to_uppercase();
+        e.contains("GENERATED") || e.contains("VIRTUAL") || e.contains("STORED")
+    }
+
+    pub fn is_blob_or_binary(&self) -> bool {
+        let t = self.r#type.to_lowercase();
+        t.contains("blob") || t.contains("binary")
+    }
+
+    pub fn is_spatial(&self) -> bool {
+        let t = self.r#type.to_lowercase();
+        t.contains("geometry")
+            || t.contains("point")
+            || t.contains("linestring")
+            || t.contains("polygon")
+            || t.contains("multipoint")
+            || t.contains("multilinestring")
+            || t.contains("multipolygon")
+            || t.contains("geometrycollection")
+    }
+
+    pub fn is_read_only(&self) -> bool {
+        self.is_generated() || self.is_blob_or_binary() || self.is_spatial()
+    }
+
+    pub fn has_unsupported_pk_type(&self) -> bool {
+        let t = self.r#type.to_lowercase();
+        self.is_blob_or_binary()
+            || t.contains("float")
+            || t.contains("double")
+            || t.contains("real")
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserInfo {
     pub user: String,

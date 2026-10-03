@@ -1,13 +1,13 @@
-# MySQL GUI (v3.0.7)
+# MySQL GUI (v3.0.8)
 
 A high-performance, native MySQL desktop client built with **Rust** and **Slint UI**.  
 Zero Electron. Zero Node.js. Zero web runtime overhead. Just pure native speed and direct SQL execution.
 
-![Version](https://img.shields.io/badge/version-3.0.7-blue)
+![Version](https://img.shields.io/badge/version-3.0.8-blue)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange)
 ![UI](https://img.shields.io/badge/UI-Slint%201.18-green)
 ![Database](https://img.shields.io/badge/Database-MySQL%20%2F%20MariaDB-4479A1)
-![Tests](https://img.shields.io/badge/Tests-69%20Passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-79%20Passing-brightgreen)
 
 ---
 
@@ -24,7 +24,10 @@ Zero Electron. Zero Node.js. Zero web runtime overhead. Just pure native speed a
 
 ### Database & Table Management
 - **Database Explorer:** Browse, create, and drop databases with live table counts.
-- **Table Data Viewer:** Paginated data grid with customizable limit (25, 50, 100), column sorting, and row deletion.
+- **Table Data Grid:** Paginated data grid with customizable limit (25, 50, 100), column sorting, and row deletion.
+- **Inline Cell Editing:** Double-click any cell to open a safe edit dialog with "Set NULL" support, strict primary key `WHERE` targeting, transactional verification (`SELECT ... FOR UPDATE`), and read-only column protection (generated, BLOB, binary, spatial).
+- **Insert Row Modal:** Add records via an in-grid modal with automatic column type inspection, default/auto-increment omission, and NULL toggling.
+- **Primary Key Safety:** Tables lacking usable primary keys (or with float/double/blob/binary keys) are automatically marked read-only with safety indicators.
 - **Table Structure Inspector:** Deep inspection of column names, data types, nullability, keys (PRI, UNI, MUL), and extra attributes.
 - **Create Table Designer:** Visual column definition builder with type selection, constraints, and instant DDL generation.
 

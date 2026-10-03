@@ -4,6 +4,19 @@ All notable changes to MySQL GUI are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [3.0.8] — 2026-10-03
+
+### Added
+- **Inline Cell Editing Modal:** Double-clicking table grid cells opens an inline edit modal with column name, data type indicator, and "Set NULL" toggle (disabled for NOT NULL columns).
+- **Safe Transactional Row Updates:** Pure `build_update_query` validates target columns against table metadata, rejects read-only columns (generated, BLOB, binary, spatial), and strictly requires all primary key columns in the `WHERE` clause.
+- **Row Verification and Locking (`SELECT ... FOR UPDATE`):** Updates run within a dedicated connection transaction (`conn.begin().await` / `tx.commit()`) that verifies and row-locks via primary keys before executing `UPDATE`, guaranteeing safe found-rows semantics when cell values remain identical.
+- **Insert Row In-Grid Modal:** Added a dedicated modal accessible via "+ Insert Row" toolbar button displaying all writable columns, types, "Default/Auto" omission toggles, and "Set NULL" checkboxes.
+- **Read-Only Primary Key Safeguard:** Tables lacking usable primary keys or featuring non-exact keys (`FLOAT`, `DOUBLE`, `REAL`, `BLOB`, `BINARY`) are automatically placed in read-only mode with a warning badge and disabled inline edit/delete actions.
+- **Stale Row Index Immunity:** Captures a snapshot of primary key values at modal open time to defend against concurrent background data grid refreshes or sorting.
+- **Table Data Unit Test Suite:** Added 10 unit tests in `src/db/data.rs` testing composite PK missing values, PK count mismatches, default-omission insert queries, generated column rejections, BLOB/spatial rejections, unsupported PK types, and successful updates/inserts/deletes (79 total passing tests).
+
+---
+
 ## [3.0.7] — 2026-10-03
 
 ### Added
