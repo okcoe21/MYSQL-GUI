@@ -4,6 +4,19 @@ All notable changes to MySQL GUI are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [3.0.7] — 2026-10-03
+
+### Added
+- **Native Async File Dialogs (`rfd::AsyncFileDialog`):** Integrated native file dialogs for export save paths and SQL/CSV import file selection running asynchronously on Tokio without blocking the Slint UI thread.
+- **Chunked Streaming Database Export (`export_database_stream`):** Implemented streaming export to `tokio::fs::File` with `BufWriter` in batches of 500 rows to prevent high memory consumption during large table dumps.
+- **RFC 4180 CSV Export & Formula Injection Protection:** Formats CSV data strictly per RFC 4180 with escaped quotes (`""`), and neutralizes spreadsheet formula injection by prefixing cells starting with `=`, `+`, `-`, or `@` with `'`.
+- **Transactional CSV Table Data Import (`import_csv_file`):** Hand-crafted RFC 4180 CSV parser with 50 MB size protection, introspects table metadata in `INFORMATION_SCHEMA.COLUMNS` to validate column count, binds values safely with parameterized queries (`.bind()`), and rolls back atomically on failure.
+- **Safe Batch SQL Script Import:** Safe statement splitter recognizing quotes and comments, wrapping pure DML statements inside an explicit transaction, and triggering the native `ConfirmDialog` for destructive statements (`DROP`, `TRUNCATE`, `DELETE`).
+- **Interactive Dual-Format Import View (`ui/views/import_view.slint`):** Added a tabbed format selector (`SQL Script` vs `CSV Table Data`), target table selector with quick-select chips for current database tables, loading states, and error reporting.
+- **Maintenance Unit Test Suite:** Added 19 unit tests in `src/db/maintenance.rs` testing formula neutralization, CSV round-tripping, RFC 4180 parser edge cases, and safe SQL statement splitting (total 69 passing unit tests).
+
+---
+
 ## [3.0.6] — 2026-10-03
 
 ### Added

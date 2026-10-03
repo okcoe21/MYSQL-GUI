@@ -5,7 +5,7 @@
 ## Current Technical Debt & Risks
 
 ### 1. Test Coverage
-- **Status:** Initial unit and security regression test suite active and passing (16/16 tests in `cargo test`). Covers identifier quoting, boundaries, SQL escaping, column length validation, destructive guards, and secret redaction.
+- **Status:** Comprehensive unit and regression test suite active and passing (69/69 tests in `cargo test`). Covers identifier quoting, boundaries, SQL escaping, column length validation, destructive guards, secret redaction, offline query explainer, RFC 4180 CSV parsing, formula injection neutralization, and safe SQL statement splitting.
 - **Next Steps:** Expand integration testing with disposable MySQL containers (`testcontainers`) and Slint headless UI testing.
 
 ### 2. Slint Layout Clamping Behavior
@@ -15,7 +15,7 @@
 
 ### 3. File Dialog Pipeline
 - **Context:** Native file dialogs (`rfd`) are imported in `Cargo.toml`.
-- **Status:** File picker integration needs to be connected to `export_view.slint` and `import_view.slint` so users can choose arbitrary file destinations on disk.
+- **Status:** Fully resolved in v3.0.7 via `rfd::AsyncFileDialog`. Non-blocking async file picker and save dialogs are wired to `export_view.slint` (streaming chunked SQL/CSV/JSON dumps to disk) and `import_view.slint` (batch SQL script runner with destructive confirmation guards, and RFC 4180 CSV table data import with column count validation and parameter binding).
 
 ### 4. Connection Pool & Reconnect Lifecycles
 - **Context:** `sqlx::MySqlPool` manages async connections.

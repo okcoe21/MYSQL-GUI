@@ -1,13 +1,13 @@
-# MySQL GUI (v3.0.6)
+# MySQL GUI (v3.0.7)
 
 A high-performance, native MySQL desktop client built with **Rust** and **Slint UI**.  
 Zero Electron. Zero Node.js. Zero web runtime overhead. Just pure native speed and direct SQL execution.
 
-![Version](https://img.shields.io/badge/version-3.0.6-blue)
+![Version](https://img.shields.io/badge/version-3.0.7-blue)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange)
 ![UI](https://img.shields.io/badge/UI-Slint%201.18-green)
 ![Database](https://img.shields.io/badge/Database-MySQL%20%2F%20MariaDB-4479A1)
-![Tests](https://img.shields.io/badge/Tests-50%20Passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-69%20Passing-brightgreen)
 
 ---
 
@@ -43,7 +43,11 @@ Zero Electron. Zero Node.js. Zero web runtime overhead. Just pure native speed a
 - **Server Health & Monitoring:** Live connection stats, thread count, queries executed, slow query counter, and live process list.
 - **Slow Query Log Viewer:** Read and inspect slow query performance logs.
 - **Mock Data Generator:** Generate synthetic rows based on table column schemas for testing.
-- **Export & Import:** Export data as SQL dump or JSON/CSV with safe character escaping (`\\`, `''`, control chars), import external `.sql` scripts.
+- **Native File Dialogs & Streaming Export/Import:**
+  - **Streaming Export:** Native `rfd::AsyncFileDialog` saving SQL dumps, CSV, or JSON directly to disk streamed in 500-row chunks to prevent memory bloat.
+  - **CSV Formula Injection Defense:** RFC 4180 CSV export neutralizes formula injection by prefixing `=, +, -, @` with `'`.
+  - **Safe SQL Script Import:** Load and execute batch `.sql` scripts with safe statement splitting, pure DML transaction wrapping, and destructive operation confirmation guards (`DROP`, `TRUNCATE`, `DELETE`).
+  - **Transactional CSV Import:** Native RFC 4180 CSV file loader into target tables with column count introspection, parameter binding (`.bind()`), 50 MB size protection, and atomic transaction rollback on failure.
 - **User & Privileges:** Inspect MySQL users, hosts, and account permissions.
 
 ---

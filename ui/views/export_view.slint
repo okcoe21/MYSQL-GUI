@@ -93,7 +93,7 @@ export component ExportViewView inherits Rectangle {
                             }
                             TouchArea {
                                 mouse-cursor: pointer;
-                                clicked => { root.set-format("sql"); }
+                                clicked => { root.format = "sql"; root.set-format("sql"); }
                             }
                         }
 
@@ -117,7 +117,7 @@ export component ExportViewView inherits Rectangle {
                             }
                             TouchArea {
                                 mouse-cursor: pointer;
-                                clicked => { root.set-format("json"); }
+                                clicked => { root.format = "json"; root.set-format("json"); }
                             }
                         }
 
@@ -141,7 +141,7 @@ export component ExportViewView inherits Rectangle {
                             }
                             TouchArea {
                                 mouse-cursor: pointer;
-                                clicked => { root.set-format("csv"); }
+                                clicked => { root.format = "csv"; root.set-format("csv"); }
                             }
                         }
                     }
@@ -165,13 +165,13 @@ export component ExportViewView inherits Rectangle {
                             text: "Include Structure (CREATE TABLE statements)";
                             checked: root.include-structure;
                             enabled: root.format == "sql";
-                            toggled(c) => { root.toggle-structure(c); }
+                            toggled(c) => { root.include-structure = c; root.toggle-structure(c); }
                         }
 
                         Checkbox {
                             text: "Include Data (INSERT INTO rows / document values)";
                             checked: root.include-data;
-                            toggled(c) => { root.toggle-data(c); }
+                            toggled(c) => { root.include-data = c; root.toggle-data(c); }
                         }
 
                         Rectangle { height: 10px; }

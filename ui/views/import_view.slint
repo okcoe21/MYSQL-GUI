@@ -1,18 +1,24 @@
 import { Theme } from "../theme.slint";
 import { PanelCard, AlertBanner } from "../components/card.slint";
 import { PrimaryButton, SecondaryButton } from "../components/button.slint";
-import { MultilineInputBox } from "../components/input.slint";
-
+import { MultilineInputBox, TextInputBox } from "../components/input.slint";
 export component ImportViewView inherits Rectangle {
     in-out property <string> db-name: "";
-    in-out property <string> sql-content <=> sql_box.text;
+    in-out property <string> format: "sql"; // "sql" or "csv"
+    in-out property <string> sql-content: "";
+    in-out property <string> target-table: "";
+    in-out property <[string]> available-tables: [];
+    in-out property <string> selected-file-path: "";
     in-out property <bool> loading: false;
     in-out property <string> message: "";
     in-out property <string> error-message: "";
     in-out property <[string]> errors: [];
 
     callback choose-file();
+    callback choose-csv-file();
+    callback set-format(string);
     callback run-import(string);
+    callback run-csv-import(string, string);
 
     background: Theme.bg-base;
 
@@ -31,33 +37,94 @@ export component ImportViewView inherits Rectangle {
                 VerticalLayout {
                     spacing: 4px;
                     Text {
-                        text: "IMPORT SQL: " + root.db-name;
+                        text: "IMPORT DATA & SCRIPTS: " + root.db-name;
                         color: Theme.accent;
                         font-size: Theme.font-lg;
                         font-weight: 700;
                         font-family: Theme.font-mono;
                     }
                     Text {
-                        text: "Execute SQL batch scripts, DDL dumps, or data restores";
+                        text: "Restore SQL dumps, execute batch scripts, or import CSV table data with parameter binding";
                         color: Theme.text-muted;
                         font-size: Theme.font-xs;
                         font-family: Theme.font-mono;
                     }
                 }
 
-                HorizontalLayout {
+                if root.format == "sql" : HorizontalLayout {
                     spacing: 10px;
 
                     SecondaryButton {
-                        text: "📂 Load File...";
+                        text: "📂 Load SQL File...";
                         clicked => { root.choose-file(); }
                     }
 
                     PrimaryButton {
-                        text: "▶ Execute Import";
+                        text: "▶ Execute SQL Import";
                         loading: root.loading;
                         enabled: !root.loading && root.sql-content != "";
                         clicked => { root.run-import(root.sql-content); }
+                    }
+                }
+            }
+
+            // Format Selector Tabs
+            HorizontalLayout {
+                spacing: 8px;
+
+                Rectangle {
+                    width: 180px;
+                    height: 32px;
+                    background: root.format == "sql" ? Theme.bg-active : Theme.bg-input;
+                    border-color: root.format == "sql" ? Theme.accent : Theme.border;
+                    border-width: 1px;
+                    border-radius: Theme.radius;
+
+                    HorizontalLayout {
+                        alignment: center;
+                        Text {
+                            text: "SQL Script (.sql)";
+                            color: root.format == "sql" ? Theme.accent : Theme.text-muted;
+                            font-size: Theme.font-xs;
+                            font-weight: 700;
+                            font-family: Theme.font-mono;
+                            vertical-alignment: center;
+                        }
+                    }
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.format = "sql";
+                            root.set-format("sql");
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: 180px;
+                    height: 32px;
+                    background: root.format == "csv" ? Theme.bg-active : Theme.bg-input;
+                    border-color: root.format == "csv" ? Theme.accent : Theme.border;
+                    border-width: 1px;
+                    border-radius: Theme.radius;
+
+                    HorizontalLayout {
+                        alignment: center;
+                        Text {
+                            text: "CSV Table Data (.csv)";
+                            color: root.format == "csv" ? Theme.accent : Theme.text-muted;
+                            font-size: Theme.font-xs;
+                            font-weight: 700;
+                            font-family: Theme.font-mono;
+                            vertical-alignment: center;
+                        }
+                    }
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.format = "csv";
+                            root.set-format("csv");
+                        }
                     }
                 }
             }
@@ -72,45 +139,154 @@ export component ImportViewView inherits Rectangle {
                 level: "success";
             }
 
-            // SQL editor input
-            PanelCard {
-                height: 280px;
-                VerticalLayout {
-                    padding: 0px;
-                    sql_box := MultilineInputBox {
-                        placeholder: "Paste SQL dump or statements here (semicolon-delimited)...";
+            // SQL Import View
+            if root.format == "sql" : VerticalLayout {
+                spacing: 16px;
+
+                PanelCard {
+                    height: 280px;
+                    VerticalLayout {
+                        padding: 0px;
+                        sql_box := MultilineInputBox {
+                            placeholder: "Paste SQL dump or statements here (semicolon-delimited)...";
+                            text: root.sql-content;
+                            edited(t) => { root.sql-content = t; }
+                        }
+                    }
+                }
+
+                // Errors List if any
+                if root.errors.length > 0 : PanelCard {
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 8px;
+
+                        Text {
+                            text: "STATEMENT ERRORS (" + root.errors.length + ")";
+                            color: Theme.danger;
+                            font-size: Theme.font-xs;
+                            font-weight: 700;
+                            font-family: Theme.font-mono;
+                        }
+
+                        for err in root.errors: Rectangle {
+                            background: Theme.danger-subtle;
+                            border-color: Theme.danger;
+                            border-width: 1px;
+                            border-radius: Theme.radius;
+
+                            HorizontalLayout {
+                                padding: 8px;
+                                Text {
+                                    text: err;
+                                    color: Theme.danger;
+                                    font-size: Theme.font-xs;
+                                    font-family: Theme.font-mono;
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
                     }
                 }
             }
 
-            // Errors List if any
-            if root.errors.length > 0 : PanelCard {
-                VerticalLayout {
-                    padding: 16px;
-                    spacing: 8px;
+            // CSV Import View
+            if root.format == "csv" : VerticalLayout {
+                spacing: 16px;
 
-                    Text {
-                        text: "STATEMENT ERRORS (" + root.errors.length + ")";
-                        color: Theme.danger;
-                        font-size: Theme.font-xs;
-                        font-weight: 700;
-                        font-family: Theme.font-mono;
-                    }
+                PanelCard {
+                    VerticalLayout {
+                        padding: 20px;
+                        spacing: 14px;
 
-                    for err in root.errors: Rectangle {
-                        background: Theme.danger-subtle;
-                        border-color: Theme.danger;
-                        border-width: 1px;
-                        border-radius: Theme.radius;
+                        Text {
+                            text: "1. TARGET TABLE";
+                            color: Theme.accent;
+                            font-size: Theme.font-xs;
+                            font-weight: 700;
+                            font-family: Theme.font-mono;
+                        }
 
-                        HorizontalLayout {
-                            padding: 8px;
+                        target_input := TextInputBox {
+                            placeholder: "Enter target table name (e.g. users)...";
+                            text: root.target-table;
+                            edited(t) => { root.target-table = t; }
+                        }
+
+                        if root.available-tables.length > 0 : HorizontalLayout {
+                            spacing: 6px;
                             Text {
-                                text: err;
-                                color: Theme.danger;
+                                text: "Existing Tables:";
+                                color: Theme.text-muted;
                                 font-size: Theme.font-xs;
                                 font-family: Theme.font-mono;
-                                wrap: word-wrap;
+                                vertical-alignment: center;
+                            }
+                            for tbl in root.available-tables: Rectangle {
+                                height: 26px;
+                                background: root.target-table == tbl ? Theme.bg-active : Theme.bg-header;
+                                border-color: root.target-table == tbl ? Theme.accent : Theme.border;
+                                border-width: 1px;
+                                border-radius: Theme.radius;
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    Text {
+                                        text: tbl;
+                                        color: root.target-table == tbl ? Theme.accent : Theme.foreground;
+                                        font-size: Theme.font-xs;
+                                        font-family: Theme.font-mono;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.target-table = tbl; }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                PanelCard {
+                    VerticalLayout {
+                        padding: 20px;
+                        spacing: 14px;
+
+                        Text {
+                            text: "2. CSV FILE SELECTION (RFC 4180, MAX 50 MB)";
+                            color: Theme.accent;
+                            font-size: Theme.font-xs;
+                            font-weight: 700;
+                            font-family: Theme.font-mono;
+                        }
+
+                        HorizontalLayout {
+                            spacing: 12px;
+
+                            SecondaryButton {
+                                text: "📂 Choose CSV File...";
+                                clicked => { root.choose-csv-file(); }
+                            }
+
+                            Text {
+                                text: root.selected-file-path != "" ? root.selected-file-path : "No file chosen (first row must be column headers)";
+                                color: root.selected-file-path != "" ? Theme.accent : Theme.text-muted;
+                                font-size: Theme.font-xs;
+                                font-family: Theme.font-mono;
+                                vertical-alignment: center;
+                                overflow: elide;
+                            }
+                        }
+
+                        Rectangle { height: 6px; }
+
+                        PrimaryButton {
+                            text: "▶ Import CSV into Table";
+                            loading: root.loading;
+                            enabled: !root.loading && root.target-table != "" && root.selected-file-path != "";
+                            clicked => {
+                                root.run-csv-import(root.target-table, root.selected-file-path);
                             }
                         }
                     }

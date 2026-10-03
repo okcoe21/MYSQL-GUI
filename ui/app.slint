@@ -141,11 +141,23 @@ export component AppWindow inherits Window {
     in-out property <string> mock-message: "";
     in-out property <string> mock-error-message: "";
 
+    // Export
+    in-out property <string> export-format: "sql";
+    in-out property <bool> export-include-structure: true;
+    in-out property <bool> export-include-data: true;
+    in-out property <bool> export-loading: false;
+    in-out property <string> export-message: "";
+    in-out property <string> export-error-message: "";
+
     // Import
+    in-out property <string> import-format: "sql";
     in-out property <string> import-sql-content: "";
+    in-out property <string> import-target-table: "";
+    in-out property <string> import-csv-path: "";
     in-out property <bool> import-loading: false;
     in-out property <string> import-message: "";
     in-out property <string> import-error-message: "";
+    in-out property <[string]> import-errors: [];
 
     // User Management
     in-out property <[UserItem]> user-items: [];
@@ -235,7 +247,10 @@ export component AppWindow inherits Window {
     callback submit-export();
 
     callback choose-import-file();
+    callback choose-import-csv-file();
+    callback set-import-format(string);
     callback submit-import(string);
+    callback submit-csv-import(string, string);
 
     callback refresh-users();
     callback toggle-performance-pause();
@@ -614,6 +629,12 @@ export component AppWindow inherits Window {
 
                     if root.active-view == "export" : export_view := ExportViewView {
                         db-name: root.selected-db;
+                        format <=> root.export-format;
+                        include-structure <=> root.export-include-structure;
+                        include-data <=> root.export-include-data;
+                        loading: root.export-loading;
+                        message: root.export-message;
+                        error-message: root.export-error-message;
                         set-format(f) => { root.set-export-format(f); }
                         toggle-structure(c) => { root.toggle-export-structure(c); }
                         toggle-data(c) => { root.toggle-export-data(c); }
@@ -622,12 +643,20 @@ export component AppWindow inherits Window {
 
                     if root.active-view == "import" : import_view := ImportViewView {
                         db-name: root.selected-db;
+                        format <=> root.import-format;
                         sql-content <=> root.import-sql-content;
+                        target-table <=> root.import-target-table;
+                        available-tables: root.builder-tables;
+                        selected-file-path: root.import-csv-path;
                         loading: root.import-loading;
                         message: root.import-message;
                         error-message: root.import-error-message;
+                        errors: root.import-errors;
                         choose-file => { root.choose-import-file(); }
+                        choose-csv-file => { root.choose-import-csv-file(); }
+                        set-format(f) => { root.set-import-format(f); }
                         run-import(sql) => { root.submit-import(sql); }
+                        run-csv-import(tbl, path) => { root.submit-csv-import(tbl, path); }
                     }
 
                     if root.active-view == "users" : users_view := UserManagementView {

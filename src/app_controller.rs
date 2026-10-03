@@ -12,7 +12,7 @@ use crate::state::SharedState;
 use crate::db::{
     auth, database, table, data, query, server, objects, maintenance,
     history::HistoryManager,
-    sanitize::{build_query_builder_select, sanitize_identifier, validate_column_length},
+    sanitize::{build_query_builder_select, sanitize_identifier, validate_column_length, is_destructive},
 };
 
 fn format_size(bytes: i64) -> String {
@@ -175,6 +175,13 @@ impl AppController {
                         "insert" => ctrl.prepare_insert_view(&app),
                         "mock_data" => ctrl.prepare_mock_data_view(&app),
                         "query_builder" => ctrl.refresh_query_builder(&app),
+                        "import" => {
+                            ctrl.refresh_query_builder(&app);
+                            let cur_tbl = ctrl.current_table.lock().unwrap().clone();
+                            if !cur_tbl.is_empty() && app.get_import_target_table().is_empty() {
+                                app.set_import_target_table(cur_tbl.into());
+                            }
+                        }
                         _ => {}
                     }
                 }
@@ -389,6 +396,11 @@ impl AppController {
                             let _ = weak.upgrade_in_event_loop(move |app| {
                                 ctrl.apply_query_result(&app, res);
                             });
+                        }
+                        "import_sql" => {
+                            let sql = ctrl.pending_destructive_query.lock().unwrap().clone();
+                            let db = target.clone();
+                            ctrl.perform_sql_import(weak.clone(), db, sql).await;
                         }
                         _ => {}
                     }
@@ -799,42 +811,133 @@ impl AppController {
         // 13. Export callbacks
         {
             let ctrl = self.clone();
+            let weak = weak.clone();
             app.on_set_export_format(move |fmt| {
                 *ctrl.export_format.lock().unwrap() = fmt.to_string();
+                if let Some(app) = weak.upgrade() {
+                    app.set_export_format(fmt);
+                }
             });
         }
 
         {
             let ctrl = self.clone();
+            let weak = weak.clone();
             app.on_toggle_export_structure(move |val| {
                 *ctrl.export_structure.lock().unwrap() = val;
+                if let Some(app) = weak.upgrade() {
+                    app.set_export_include_structure(val);
+                }
             });
         }
 
         {
             let ctrl = self.clone();
+            let weak = weak.clone();
             app.on_toggle_export_data(move |val| {
                 *ctrl.export_data.lock().unwrap() = val;
+                if let Some(app) = weak.upgrade() {
+                    app.set_export_include_data(val);
+                }
             });
         }
 
         {
             let ctrl = self.clone();
+            let weak = weak.clone();
             app.on_submit_export(move || {
                 let ctrl = ctrl.clone();
+                let weak = weak.clone();
+
+                let db = ctrl.current_db.lock().unwrap().clone();
+                if db.is_empty() {
+                    if let Some(app) = weak.upgrade() {
+                        app.set_export_error_message("Please select a database first.".into());
+                    }
+                    return;
+                }
+
+                let fmt = if let Some(app) = weak.upgrade() {
+                    app.get_export_format().to_string()
+                } else {
+                    ctrl.export_format.lock().unwrap().clone()
+                };
+                let inc_struct = if let Some(app) = weak.upgrade() {
+                    app.get_export_include_structure()
+                } else {
+                    *ctrl.export_structure.lock().unwrap()
+                };
+                let inc_data = if let Some(app) = weak.upgrade() {
+                    app.get_export_include_data()
+                } else {
+                    *ctrl.export_data.lock().unwrap()
+                };
+
+                let filename = format!("{}_dump.{}", db, fmt);
 
                 tokio::spawn(async move {
-                    let db = ctrl.current_db.lock().unwrap().clone();
-                    let fmt = ctrl.export_format.lock().unwrap().clone();
-                    let inc_struct = *ctrl.export_structure.lock().unwrap();
-                    let inc_data = *ctrl.export_data.lock().unwrap();
-
-                    let filename = format!("{}_dump.{}", db, fmt);
-                    if let Some(path) = rfd::FileDialog::new().set_file_name(&filename).save_file() {
-                        if let Ok(content) = maintenance::export_database(&ctrl.state, &db, &fmt, inc_struct, inc_data).await {
-                            let _ = std::fs::write(path, content);
-                        }
+                    let mut dialog = rfd::AsyncFileDialog::new().set_file_name(&filename);
+                    if fmt == "sql" {
+                        dialog = dialog.add_filter("SQL Dump (*.sql)", &["sql"]);
+                    } else if fmt == "csv" {
+                        dialog = dialog.add_filter("CSV (*.csv)", &["csv"]);
+                    } else if fmt == "json" {
+                        dialog = dialog.add_filter("JSON (*.json)", &["json"]);
                     }
+
+                    let file = dialog.save_file().await;
+                    let file_handle = match file {
+                        Some(f) => f,
+                        None => {
+                            let _ = weak.upgrade_in_event_loop(move |app| {
+                                app.set_export_loading(false);
+                            });
+                            return;
+                        }
+                    };
+
+                    let path = file_handle.path().to_path_buf();
+
+                    let _ = weak.upgrade_in_event_loop(move |app| {
+                        app.set_export_loading(true);
+                        app.set_export_error_message("".into());
+                        app.set_export_message("Streaming export to file...".into());
+                    });
+
+                    let res = maintenance::export_database_stream(
+                        &ctrl.state,
+                        &db,
+                        &fmt,
+                        inc_struct,
+                        inc_data,
+                        &path,
+                    ).await;
+
+                    let _ = weak.upgrade_in_event_loop(move |app| {
+                        app.set_export_loading(false);
+                        match res {
+                            Ok((tables_exported, file_size)) => {
+                                let size_str = if file_size < 1024 {
+                                    format!("{} B", file_size)
+                                } else if file_size < 1024 * 1024 {
+                                    format!("{:.2} KB", file_size as f64 / 1024.0)
+                                } else {
+                                    format!("{:.2} MB", file_size as f64 / (1024.0 * 1024.0))
+                                };
+                                app.set_export_message(format!(
+                                    "Export completed successfully: {} tables exported ({}) to {}",
+                                    tables_exported,
+                                    size_str,
+                                    path.file_name().unwrap_or_default().to_string_lossy()
+                                ).into());
+                                app.set_export_error_message("".into());
+                            }
+                            Err(e) => {
+                                app.set_export_error_message(e.into());
+                                app.set_export_message("".into());
+                            }
+                        }
+                    });
                 });
             });
         }
@@ -843,12 +946,86 @@ impl AppController {
         {
             let weak = weak.clone();
             app.on_choose_import_file(move || {
-                if let Some(path) = rfd::FileDialog::new().add_filter("SQL", &["sql"]).pick_file() {
-                    if let Ok(content) = std::fs::read_to_string(path) {
-                        if let Some(app) = weak.upgrade() {
-                            app.set_import_sql_content(content.into());
+                let weak = weak.clone();
+                tokio::spawn(async move {
+                    let file = rfd::AsyncFileDialog::new()
+                        .add_filter("SQL Files (*.sql)", &["sql"])
+                        .pick_file()
+                        .await;
+
+                    if let Some(file_handle) = file {
+                        let path = file_handle.path().to_path_buf();
+                        let metadata = match tokio::fs::metadata(&path).await {
+                            Ok(m) => m,
+                            Err(e) => {
+                                let _ = weak.upgrade_in_event_loop(move |app| {
+                                    app.set_import_error_message(format!("Failed to read file metadata: {}", e).into());
+                                });
+                                return;
+                            }
+                        };
+
+                        const MAX_SQL_SIZE: u64 = 50 * 1024 * 1024;
+                        if metadata.len() > MAX_SQL_SIZE {
+                            let _ = weak.upgrade_in_event_loop(move |app| {
+                                app.set_import_error_message(format!(
+                                    "SQL file size ({:.2} MB) exceeds maximum permitted limit of 50 MB",
+                                    metadata.len() as f64 / (1024.0 * 1024.0)
+                                ).into());
+                            });
+                            return;
+                        }
+
+                        match tokio::fs::read_to_string(&path).await {
+                            Ok(content) => {
+                                let _ = weak.upgrade_in_event_loop(move |app| {
+                                    app.set_import_sql_content(content.into());
+                                    app.set_import_error_message("".into());
+                                    app.set_import_message(format!(
+                                        "Loaded SQL file: {} ({:.1} KB)",
+                                        path.file_name().unwrap_or_default().to_string_lossy(),
+                                        metadata.len() as f64 / 1024.0
+                                    ).into());
+                                });
+                            }
+                            Err(e) => {
+                                let _ = weak.upgrade_in_event_loop(move |app| {
+                                    app.set_import_error_message(format!("Failed to read SQL file: {}", e).into());
+                                });
+                            }
                         }
                     }
+                });
+            });
+        }
+
+        {
+            let weak = weak.clone();
+            app.on_choose_import_csv_file(move || {
+                let weak = weak.clone();
+                tokio::spawn(async move {
+                    let file = rfd::AsyncFileDialog::new()
+                        .add_filter("CSV Files (*.csv)", &["csv"])
+                        .pick_file()
+                        .await;
+
+                    if let Some(file_handle) = file {
+                        let path_str = file_handle.path().to_string_lossy().to_string();
+                        let _ = weak.upgrade_in_event_loop(move |app| {
+                            app.set_import_csv_path(path_str.into());
+                            app.set_import_error_message("".into());
+                        });
+                    }
+                });
+            });
+        }
+
+        {
+            let weak = weak.clone();
+            app.on_set_import_format(move |fmt| {
+                if let Some(app) = weak.upgrade() {
+                    app.set_import_format(fmt);
+                    app.set_import_error_message("".into());
                 }
             });
         }
@@ -858,33 +1035,93 @@ impl AppController {
             let ctrl = self.clone();
             app.on_submit_import(move |sql| {
                 let sql_str = sql.to_string();
+                if sql_str.trim().is_empty() {
+                    return;
+                }
+                let db = ctrl.current_db.lock().unwrap().clone();
+                if db.is_empty() {
+                    if let Some(app) = weak.upgrade() {
+                        app.set_import_error_message("Please select a database first.".into());
+                    }
+                    return;
+                }
+
+                let stmts = query::split_sql_statements(&sql_str);
+                let is_dest = stmts.iter().any(|s| is_destructive(s));
+
+                if is_dest {
+                    *ctrl.pending_dialog_action.lock().unwrap() = ("import_sql".to_string(), db.clone());
+                    *ctrl.pending_destructive_query.lock().unwrap() = sql_str.clone();
+                    if let Some(app) = weak.upgrade() {
+                        app.set_dialog_title("DESTRUCTIVE SQL IMPORT".into());
+                        app.set_dialog_message(format!(
+                            "The SQL script contains destructive operations (DROP, TRUNCATE, or DELETE) for database [{}]. Are you sure you want to execute it?",
+                            db
+                        ).into());
+                        app.set_dialog_open(true);
+                    }
+                } else {
+                    ctrl.clone().execute_sql_import(weak.clone(), db, sql_str);
+                }
+            });
+        }
+
+        {
+            let weak = weak.clone();
+            let ctrl = self.clone();
+            app.on_submit_csv_import(move |tbl, path| {
+                let tbl_str = tbl.to_string();
+                let path_str = path.to_string();
                 let ctrl = ctrl.clone();
                 let weak = weak.clone();
+
+                if tbl_str.trim().is_empty() {
+                    if let Some(app) = weak.upgrade() {
+                        app.set_import_error_message("Target table name cannot be empty.".into());
+                    }
+                    return;
+                }
+
+                if path_str.trim().is_empty() {
+                    if let Some(app) = weak.upgrade() {
+                        app.set_import_error_message("Please select a CSV file first.".into());
+                    }
+                    return;
+                }
+
+                let db = ctrl.current_db.lock().unwrap().clone();
+                if db.is_empty() {
+                    if let Some(app) = weak.upgrade() {
+                        app.set_import_error_message("Please select a database first.".into());
+                    }
+                    return;
+                }
 
                 if let Some(app) = weak.upgrade() {
                     app.set_import_loading(true);
                     app.set_import_error_message("".into());
-                    app.set_import_message("".into());
+                    app.set_import_message("Importing CSV data into table...".into());
                 }
 
                 tokio::spawn(async move {
-                    let db = ctrl.current_db.lock().unwrap().clone();
-                    let res = maintenance::import_sql(&ctrl.state, &db, &sql_str).await;
+                    let file_path = std::path::PathBuf::from(path_str);
+                    let res = maintenance::import_csv_file(&ctrl.state, &db, &tbl_str, &file_path).await;
+
                     let _ = weak.upgrade_in_event_loop(move |app| {
                         app.set_import_loading(false);
                         match res {
-                            Ok((count, errors)) => {
-                                let msg = if errors.is_empty() {
-                                    format!("Import completed: {} statements executed successfully.", count)
-                                } else {
-                                    format!("Import finished with {} statements and {} errors.", count, errors.len())
-                                };
-                                app.set_import_message(msg.into());
+                            Ok(inserted) => {
+                                app.set_import_message(format!(
+                                    "CSV import completed successfully: {} rows inserted into table '{}'.",
+                                    inserted, tbl_str
+                                ).into());
+                                app.set_import_error_message("".into());
                                 ctrl.refresh_databases(&app);
                                 ctrl.refresh_db_overview(&app);
                             }
                             Err(e) => {
                                 app.set_import_error_message(e.into());
+                                app.set_import_message("".into());
                             }
                         }
                     });
@@ -1636,5 +1873,44 @@ impl AppController {
                 app.set_sql_result_rows(ModelRc::default());
             }
         }
+    }
+
+    pub fn execute_sql_import(self: Arc<Self>, weak: slint::Weak<AppWindow>, db: String, sql: String) {
+        tokio::spawn(async move {
+            self.perform_sql_import(weak, db, sql).await;
+        });
+    }
+
+    pub async fn perform_sql_import(self: Arc<Self>, weak: slint::Weak<AppWindow>, db: String, sql: String) {
+        let _ = weak.upgrade_in_event_loop(|app| {
+            app.set_import_loading(true);
+            app.set_import_error_message("".into());
+            app.set_import_message("Executing SQL import...".into());
+            app.set_import_errors(ModelRc::from(Rc::new(VecModel::from(vec![]))));
+        });
+
+        let res = maintenance::import_sql(&self.state, &db, &sql).await;
+        let _ = weak.upgrade_in_event_loop(move |app| {
+            app.set_import_loading(false);
+            match res {
+                Ok((count, errors)) => {
+                    let err_items: Vec<SharedString> = errors.iter().map(Into::into).collect();
+                    app.set_import_errors(ModelRc::from(Rc::new(VecModel::from(err_items))));
+                    if errors.is_empty() {
+                        app.set_import_message(format!("Import completed: {} statements executed successfully.", count).into());
+                        app.set_import_error_message("".into());
+                    } else {
+                        app.set_import_message(format!("Import finished: {} succeeded, {} failed.", count, errors.len()).into());
+                        app.set_import_error_message(format!("{} statement(s) failed during execution.", errors.len()).into());
+                    }
+                    self.refresh_databases(&app);
+                    self.refresh_db_overview(&app);
+                }
+                Err(e) => {
+                    app.set_import_error_message(e.into());
+                    app.set_import_message("".into());
+                }
+            }
+        });
     }
 }
